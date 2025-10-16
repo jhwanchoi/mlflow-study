@@ -1,0 +1,15 @@
+artifact_uri: s3://mlflow/artifacts/604094585392158958/1c895838388d41eda1965840d21ef139/artifacts
+end_time: 1760598073579
+entry_point_name: ''
+experiment_id: '604094585392158958'
+lifecycle_stage: active
+run_id: 1c895838388d41eda1965840d21ef139
+run_name: mobilenet_v3_small_CIFAR10_20251016_155739
+run_uuid: 1c895838388d41eda1965840d21ef139
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1760597859203
+status: 4
+tags: []
+user_id: jihwanchoi

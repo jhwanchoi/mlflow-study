@@ -1,0 +1,8 @@
+FROM ghcr.io/mlflow/mlflow:v2.10.2
+
+# Install boto3 for S3 (MinIO) support and psycopg2 for PostgreSQL
+RUN pip install --no-cache-dir boto3 psycopg2-binary
+
+# Health check
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
+  CMD curl -f http://localhost:5000/health || exit 1

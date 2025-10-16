@@ -1,0 +1,6 @@
+artifact_location: s3://mlflow/artifacts/0
+creation_time: 1760595153282
+experiment_id: '0'
+last_update_time: 1760595153282
+lifecycle_stage: active
+name: Default

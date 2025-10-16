@@ -1,0 +1,6 @@
+artifact_location: s3://mlflow/artifacts/604094585392158958
+creation_time: 1760597438853
+experiment_id: '604094585392158958'
+last_update_time: 1760597438853
+lifecycle_stage: active
+name: vision-model-training
