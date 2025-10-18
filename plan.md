@@ -161,38 +161,66 @@
 - [x] Docker 빌드 디스크 부족 → 자동 빌드 비활성화
 - [x] flake8/mypy 에러 → 전체 코드 품질 개선
 
-### Phase 3: 학습 파이프라인 고도화 (다음 단계)
+### Phase 3: 학습 파이프라인 고도화 (계획 수립 완료)
 
-#### 3.1 테스트 커버리지 개선
-- [ ] `src/training/evaluate.py`: 18% → 70%
-  - [ ] 평가 함수 전체 실행 테스트
-  - [ ] Confusion matrix 생성 테스트
-  - [ ] Per-class metrics 계산 테스트
-  - [ ] 시각화 저장 테스트
-- [ ] `src/data/dataset.py`: 51% → 80%
-- [ ] `src/training/train.py`: 52% → 80%
+**상세 계획**: [docs/phase3_plan.md](docs/phase3_plan.md)
+**추후 작업**: [TODO.md](TODO.md)
 
-#### 3.2 타입 안전성 강화
-- [ ] mypy strict 모드 활성화
-- [ ] 모든 함수에 타입 힌트 추가
-- [ ] Protocol/TypedDict 활용
+#### 개요
+- 테스트 커버리지 개선 (56% → 75%+)
+- 타입 안전성 강화 (mypy strict)
+- MLflow Model Registry 통합
+- Optuna 하이퍼파라미터 튜닝
+- DDP 분산 학습 (코드 구조, 테스트는 추후)
 
-#### 3.3 분산 학습 지원
-- [ ] PyTorch DDP (Distributed Data Parallel) 구현
-- [ ] Multi-GPU 학습 지원
-- [ ] 학습 속도 벤치마크
+#### 우선순위 및 예상 기간
+1. **Phase 3.1**: 테스트 커버리지 개선 (1-2일)
+2. **Phase 3.2**: 타입 안전성 강화 (1일)
+3. **Phase 3.5**: MLflow Model Registry (2-3일)
+4. **Phase 3.4**: Optuna 튜닝 (3-4일)
+5. **Phase 3.3**: DDP 코드 구조 (2-3일)
 
-#### 3.4 하이퍼파라미터 튜닝 자동화
-- [ ] Optuna 통합
-- [ ] MLflow와 Optuna 연동
-- [ ] 베이지안 최적화 적용
-- [ ] 최적 하이퍼파라미터 자동 로깅
+**총 예상 기간**: 3-4주
 
-#### 3.5 모델 레지스트리
-- [ ] MLflow Model Registry 활용
-- [ ] 모델 버전 관리
-- [ ] Stage 관리 (Staging, Production)
-- [ ] 모델 비교 및 롤백 기능
+#### 진행 상황
+- [ ] **Phase 3.1**: 테스트 커버리지 개선
+  - [ ] test_evaluate_extended.py 생성
+  - [ ] test_dataset_extended.py 생성
+  - [ ] test_training_extended.py 생성
+  - [ ] 전체 커버리지 75% 달성
+- [ ] **Phase 3.2**: 타입 안전성 강화
+  - [ ] types.py 생성 (TypedDict, Protocol)
+  - [ ] 모든 함수 타입 힌트 추가
+  - [ ] mypy strict 통과
+- [ ] **Phase 3.5**: MLflow Model Registry
+  - [ ] registry.py 생성
+  - [ ] train.py 통합 (자동 등록)
+  - [ ] test_registry.py 생성
+  - [ ] docs/model_registry.md 작성
+- [ ] **Phase 3.4**: Optuna 하이퍼파라미터 튜닝
+  - [ ] tuning.py 생성
+  - [ ] Optuna-MLflow 통합
+  - [ ] 50 trials 실행
+  - [ ] 90%+ 정확도 달성
+  - [ ] docs/hyperparameter_tuning.md 작성
+- [ ] **Phase 3.3**: DDP 분산 학습
+  - [ ] distributed.py 생성
+  - [ ] train_distributed.py 생성
+  - [ ] 로컬 CPU 테스트
+  - [ ] docs/distributed_training.md 작성
+  - [ ] TODO.md에 클라우드 테스트 항목 추가
+
+#### 성공 기준
+- ✅ 전체 커버리지 75%+
+- ✅ mypy strict 모드 통과
+- ✅ MLflow Model Registry 동작
+- ✅ Optuna 50 trials 완료
+- ✅ DDP 코드 구조 완성
+- 🎯 CIFAR-10 정확도 90%+ (Optuna 튜닝 후)
+
+#### 제약사항
+- ⚠️ M2 Mac: DDP multi-GPU 테스트 불가
+- ⚠️ DDP 실제 테스트는 클라우드 환경 필요 → [TODO.md](TODO.md) 참조
 
 ### Phase 5: 모델 개선 및 실험
 
