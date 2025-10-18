@@ -33,7 +33,9 @@ class VisionModel(nn.Module):
         self.num_classes = num_classes
         self.pretrained = pretrained
 
-        logger.info(f"Initializing {model_name} with {num_classes} classes (pretrained={pretrained})")
+        logger.info(
+            f"Initializing {model_name} with {num_classes} classes (pretrained={pretrained})"
+        )
 
         # Load base model
         if model_name == "mobilenet_v3_small":
@@ -77,7 +79,7 @@ class VisionModel(nn.Module):
         Returns:
             Output tensor of shape (batch_size, num_classes)
         """
-        return self.model(x)
+        return self.model(x)  # type: ignore[no-any-return]
 
     def get_num_parameters(self) -> dict[str, int]:
         """Get number of model parameters.

@@ -1,6 +1,5 @@
 """Integration tests for training pipeline."""
 
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -200,15 +199,15 @@ class TestTrainingIntegration:
         get_settings.cache_clear()
 
         # Mock MLflow to avoid actual tracking
-        with patch("mlflow.set_tracking_uri"), \
-             patch("mlflow.set_experiment"), \
-             patch("mlflow.start_run") as mock_run, \
-             patch("mlflow.log_params"), \
-             patch("mlflow.log_metrics"), \
-             patch("mlflow.log_metric"), \
-             patch("mlflow.set_tag"), \
-             patch("mlflow.pytorch.log_model"):
-
+        with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
+            "mlflow.start_run"
+        ) as mock_run, patch("mlflow.log_params"), patch("mlflow.log_metrics"), patch(
+            "mlflow.log_metric"
+        ), patch(
+            "mlflow.set_tag"
+        ), patch(
+            "mlflow.pytorch.log_model"
+        ):
             # Mock run context
             mock_run_context = MagicMock()
             mock_run_context.info.run_id = "test_run_id"
@@ -302,9 +301,7 @@ class TestTrainingIntegration:
 class TestMLflowIntegration:
     """Test MLflow integration."""
 
-    def test_mlflow_logging_calls(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_mlflow_logging_calls(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Test that MLflow logging functions are called correctly."""
         monkeypatch.setenv("MLFLOW_TRACKING_URI", f"file://{tmp_path}/mlflow")
 
@@ -312,10 +309,9 @@ class TestMLflowIntegration:
 
         get_settings.cache_clear()
 
-        with patch("mlflow.log_params") as mock_log_params, \
-             patch("mlflow.log_metrics") as mock_log_metrics, \
-             patch("mlflow.set_tag") as mock_set_tag:
-
+        with patch("mlflow.log_params") as mock_log_params, patch(
+            "mlflow.log_metrics"
+        ) as mock_log_metrics, patch("mlflow.set_tag") as mock_set_tag:
             # Simulate logging
             mock_log_params({"learning_rate": 0.001, "batch_size": 64})
             mock_log_metrics({"train_loss": 1.5, "val_loss": 1.3}, step=1)

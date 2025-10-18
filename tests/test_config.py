@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.config import Settings, get_settings
+from src.config import get_settings
 
 
 class TestSettings:
@@ -15,6 +15,7 @@ class TestSettings:
         monkeypatch.delenv("MLFLOW_TRACKING_URI", raising=False)
 
         from src.config import get_settings
+
         get_settings.cache_clear()
         settings = get_settings()
 

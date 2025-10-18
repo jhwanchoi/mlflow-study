@@ -39,8 +39,8 @@ ENV/
 # Claude Code settings (contains API keys)
 .claude/settings.json
 
-# Data
-data/
+# Data (downloaded datasets only, not source code)
+/data/
 *.pt
 *.pth
 *.ckpt

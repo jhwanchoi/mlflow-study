@@ -1,6 +1,5 @@
 """Pytest configuration and fixtures."""
 
-import os
 import tempfile
 from pathlib import Path
 from typing import Generator
@@ -30,7 +29,9 @@ def mlflow_tracking_uri(tmp_path_factory: pytest.TempPathFactory) -> str:
 
 
 @pytest.fixture
-def set_test_env(monkeypatch: pytest.MonkeyPatch, temp_data_dir: Path, mlflow_tracking_uri: str) -> None:
+def set_test_env(
+    monkeypatch: pytest.MonkeyPatch, temp_data_dir: Path, mlflow_tracking_uri: str
+) -> None:
     """Set test environment variables (not auto-used, call explicitly when needed)."""
     monkeypatch.setenv("MLFLOW_TRACKING_URI", mlflow_tracking_uri)
     monkeypatch.setenv("DATA_DIR", str(temp_data_dir))

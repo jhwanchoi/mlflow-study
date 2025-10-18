@@ -204,12 +204,7 @@ def train_model() -> str:
         }
 
         model_params = model.get_num_parameters()
-        params.update(
-            {
-                f"model_{k}": v
-                for k, v in model_params.items()
-            }
-        )
+        params.update({f"model_{k}": v for k, v in model_params.items()})
 
         mlflow.log_params(params)
 
@@ -275,7 +270,10 @@ def train_model() -> str:
                     )
             else:
                 patience_counter += 1
-                logger.info(f"No improvement. Patience: {patience_counter}/{settings.early_stopping_patience}")
+                logger.info(
+                    f"No improvement. Patience: "
+                    f"{patience_counter}/{settings.early_stopping_patience}"
+                )
 
             # Early stopping
             if patience_counter >= settings.early_stopping_patience:
@@ -304,7 +302,7 @@ def train_model() -> str:
         logger.info(f"Training complete. Best validation accuracy: {best_val_acc:.2f}%")
         logger.info(f"MLflow run ID: {run.info.run_id}")
 
-        return run.info.run_id
+        return run.info.run_id  # type: ignore[no-any-return]
 
 
 if __name__ == "__main__":

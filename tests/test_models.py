@@ -184,7 +184,10 @@ class TestVisionModel:
             assert output.shape == (2, num_classes)
 
     def test_gradient_flow(
-        self, test_device: torch.device, sample_image_batch: torch.Tensor, sample_labels: torch.Tensor
+        self,
+        test_device: torch.device,
+        sample_image_batch: torch.Tensor,
+        sample_labels: torch.Tensor,
     ) -> None:
         """Test that gradients flow through the model."""
         model = VisionModel(
@@ -253,9 +256,7 @@ class TestModelCompatibility:
     """Test model compatibility with different configurations."""
 
     @pytest.mark.parametrize("batch_size", [1, 4, 16])
-    def test_different_batch_sizes(
-        self, test_device: torch.device, batch_size: int
-    ) -> None:
+    def test_different_batch_sizes(self, test_device: torch.device, batch_size: int) -> None:
         """Test model with different batch sizes."""
         model = VisionModel(
             model_name="mobilenet_v3_small",
@@ -273,9 +274,7 @@ class TestModelCompatibility:
         assert output.shape == (batch_size, 10)
 
     @pytest.mark.parametrize("image_size", [28, 32, 64, 224])
-    def test_different_image_sizes(
-        self, test_device: torch.device, image_size: int
-    ) -> None:
+    def test_different_image_sizes(self, test_device: torch.device, image_size: int) -> None:
         """Test model with different image sizes."""
         model = VisionModel(
             model_name="mobilenet_v3_small",

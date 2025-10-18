@@ -1,8 +1,6 @@
 """End-to-end tests for training and evaluation pipeline."""
 
-import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 import torch
@@ -86,10 +84,13 @@ class TestEndToEndTraining:
 
         # Save model
         checkpoint_path = tmp_path / "test_model.pth"
-        torch.save({
-            "model_state_dict": model.state_dict(),
-            "epoch": 5,
-        }, checkpoint_path)
+        torch.save(
+            {
+                "model_state_dict": model.state_dict(),
+                "epoch": 5,
+            },
+            checkpoint_path,
+        )
 
         # Load model into new instance
         new_model = create_model()
@@ -126,7 +127,7 @@ class TestEndToEndTraining:
         with torch.no_grad():
             inputs, targets = next(iter(loader))
             inputs, targets = inputs.to(test_device), targets.to(test_device)
-            initial_loss = criterion(model(inputs), targets).item()
+            initial_loss = criterion(model(inputs), targets).item()  # noqa: F841
 
         # Train one step
         model.train()
@@ -176,6 +177,7 @@ class TestEndToEndEvaluation:
 
         # Get class names
         from src.data.dataset import get_class_names
+
         class_names = get_class_names(settings.dataset)
 
         # Run evaluation
@@ -262,26 +264,32 @@ class TestMLflowIntegrationE2E:
         # Start run and log metrics
         with mlflow.start_run(run_name="test_run") as run:
             # Log parameters
-            mlflow.log_params({
-                "model_name": "mobilenet_v3_small",
-                "batch_size": 8,
-                "learning_rate": 0.01,
-            })
+            mlflow.log_params(
+                {
+                    "model_name": "mobilenet_v3_small",
+                    "batch_size": 8,
+                    "learning_rate": 0.01,
+                }
+            )
 
             # Log metrics
             for epoch in range(1, 3):
-                mlflow.log_metrics({
-                    "train_loss": 2.0 / epoch,
-                    "train_accuracy": 50.0 * epoch,
-                    "val_loss": 2.5 / epoch,
-                    "val_accuracy": 45.0 * epoch,
-                }, step=epoch)
+                mlflow.log_metrics(
+                    {
+                        "train_loss": 2.0 / epoch,
+                        "train_accuracy": 50.0 * epoch,
+                        "val_loss": 2.5 / epoch,
+                        "val_accuracy": 45.0 * epoch,
+                    },
+                    step=epoch,
+                )
 
             # Log model as artifact (simpler test)
             model = create_model()
 
             # Create a temporary model file
             import tempfile
+
             with tempfile.NamedTemporaryFile(suffix=".pth", delete=False) as f:
                 torch.save(model.state_dict(), f.name)
                 mlflow.log_artifact(f.name, "model")
@@ -323,7 +331,6 @@ class TestDataPipeline:
         monkeypatch.setenv("TRAIN_VAL_SPLIT", "0.8")
 
         get_settings.cache_clear()
-        settings = get_settings()
 
         # Load data
         train_loader, val_loader, test_loader = get_dataloaders()
@@ -343,13 +350,13 @@ class TestDataPipeline:
 
             # Check shapes
             assert images.shape[0] <= 16  # batch size
-            assert images.shape[1] == 3   # RGB channels
+            assert images.shape[1] == 3  # RGB channels
             assert images.shape[2] == 32  # CIFAR-10 image height
             assert images.shape[3] == 32  # CIFAR-10 image width
 
             # Check value ranges (normalized)
             assert images.min() >= -3.0  # roughly -mean/std
-            assert images.max() <= 3.0   # roughly (1-mean)/std
+            assert images.max() <= 3.0  # roughly (1-mean)/std
 
             # Check labels
             assert labels.min() >= 0
@@ -357,8 +364,6 @@ class TestDataPipeline:
 
     def test_augmentation_differences(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that training augmentation differs from test transforms."""
-        from torch.utils.data import DataLoader, TensorDataset
-
         monkeypatch.setenv("USE_AUGMENTATION", "true")
         monkeypatch.setenv("RANDOM_HORIZONTAL_FLIP", "true")
 

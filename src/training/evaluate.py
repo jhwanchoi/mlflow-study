@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Optional
 
 import matplotlib.pyplot as plt
 import mlflow
@@ -42,9 +42,9 @@ def evaluate_model(
     """
     model.eval()
 
-    all_predictions = []
-    all_targets = []
-    all_probs = []
+    all_predictions: list[Any] = []
+    all_targets: list[Any] = []
+    all_probs: list[Any] = []
 
     logger.info("Running evaluation...")
 
@@ -57,26 +57,26 @@ def evaluate_model(
             probs = torch.softmax(outputs, dim=1)
             _, predictions = torch.max(outputs, 1)
 
-            all_predictions.extend(predictions.cpu().numpy())
-            all_targets.extend(targets.numpy())
-            all_probs.extend(probs.cpu().numpy())
+            all_predictions.extend(predictions.cpu().numpy().tolist())
+            all_targets.extend(targets.numpy().tolist())
+            all_probs.extend(probs.cpu().numpy().tolist())
 
     # Convert to numpy arrays
-    all_predictions = np.array(all_predictions)
-    all_targets = np.array(all_targets)
-    all_probs = np.array(all_probs)
+    pred_array = np.array(all_predictions)
+    target_array = np.array(all_targets)
+    probs_array = np.array(all_probs)
 
     # Calculate accuracy
-    accuracy = 100.0 * (all_predictions == all_targets).sum() / len(all_targets)
+    accuracy = 100.0 * float(np.sum(pred_array == target_array)) / len(target_array)
     logger.info(f"Test Accuracy: {accuracy:.2f}%")
 
     # Generate confusion matrix
-    cm = confusion_matrix(all_targets, all_predictions)
+    cm = confusion_matrix(target_array, pred_array)
 
     # Generate classification report
     report = classification_report(
-        all_targets,
-        all_predictions,
+        target_array,
+        pred_array,
         target_names=class_names,
         output_dict=True,
     )
