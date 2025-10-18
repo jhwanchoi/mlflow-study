@@ -96,33 +96,51 @@
 - ✅ Docker 표준화 (Python 버전 무관)
 - ✅ PostgreSQL 동시성 지원
 - ✅ MLflow 완전 통합 (실험 추적, 메트릭, 아티팩트)
-- ✅ 자동화 테스트 (52개)
+- ✅ 자동화 테스트 (52개, 56.61% 커버리지)
+- ✅ CI/CD 파이프라인 (GitHub Actions)
+- ✅ 코드 품질 자동화 (Black, isort, flake8, mypy)
+- ✅ 보안 스캔 (Trivy, Bandit)
 - ✅ M2 GPU 지원 (MPS backend)
 - ✅ 3개 모델 지원 (MobileNetV3-S/L, ResNet18)
 - ✅ 3개 데이터셋 지원 (CIFAR-10/100, Fashion-MNIST)
 
 ---
 
-## 🎯 다음 단계 (Phase 4-6)
+## 🎯 다음 단계 (Phase 3, 5-6)
 
-### Phase 4: CI/CD 파이프라인 구축 ✅ (2025-10-18)
+### Phase 4: CI/CD 파이프라인 구축 ✅ (2025-10-18 완료)
 
 #### 4.1 GitHub Actions 워크플로우
 - [x] 테스트 워크플로우 ([.github/workflows/test.yml](.github/workflows/test.yml))
-  - Docker 기반 테스트 실행
+  - Docker 기반 테스트 실행 (52개 테스트, 56.61% 커버리지)
   - 코드 품질 검사 (Black, isort, flake8, mypy)
-  - 보안 스캔 (Trivy, Bandit)
-  - Codecov 통합
+  - 보안 스캔 (Trivy 파일시스템 스캔)
+  - Codecov 통합 및 HTML 리포트 아티팩트
+  - 디스크 공간 최적화 (~25-30GB 확보)
 - [x] Docker 빌드 워크플로우 ([.github/workflows/docker.yml](.github/workflows/docker.yml))
-  - Production/Development 이미지 자동 빌드
+  - **수동 실행으로 변경** (디스크 공간 및 리소스 절약)
+  - Production/Development 이미지 빌드 (workflow_dispatch)
   - MLflow Server 이미지 빌드
-  - GitHub Container Registry 푸시
+  - GitHub Container Registry 푸시 가능
 - [x] Release 워크플로우 ([.github/workflows/release.yml](.github/workflows/release.yml))
-  - 태그 기반 릴리스 자동화
+  - 태그 기반 릴리스 자동화 (v*.*.*)
   - Changelog 자동 생성
   - E2E 테스트 실행
 
-#### 4.2 로컬 개발 도구
+#### 4.2 코드 품질 개선
+- [x] Black 포맷팅 적용 (7개 파일)
+- [x] isort import 정렬
+- [x] flake8 린팅 이슈 해결
+  - F401 (unused imports) 제거
+  - E501 (line too long) 수정
+  - F841 (unused variables) 처리
+- [x] mypy 타입 체킹 이슈 해결
+  - 외부 라이브러리 타입 ignore 추가
+  - numpy array 타입 개선
+  - 함수 반환 타입 명시
+- [x] .gitignore 수정 (src/data/ 추적 가능하도록)
+
+#### 4.3 로컬 개발 도구
 - [x] Pre-commit hook 설정 ([.pre-commit-config.yaml](.pre-commit-config.yaml))
   - Black, isort, flake8, mypy
   - Bandit 보안 검사
@@ -131,24 +149,50 @@
   - `make pre-commit-install`
   - `make pre-commit-run`
 
-#### 4.3 문서화
-- [x] [CICD.md](CICD.md): 완전한 CI/CD 가이드
+#### 4.4 문서화
+- [x] [CICD.md](CICD.md): 완전한 CI/CD 가이드 (200+ 줄)
 - [x] README.md: CI/CD 섹션 추가
 - [x] pyproject.toml: pytest markers, bandit 설정
 
-### Phase 4.5: 코드 품질 개선 (다음)
+#### 4.5 해결한 문제들
+- [x] Black 포맷팅 CI 실패 → Docker 환경 사용
+- [x] Security Scan 권한 에러 → `security-events: write` 추가
+- [x] GitHub Actions 디스크 부족 → 25-30GB 확보
+- [x] Docker 빌드 디스크 부족 → 자동 빌드 비활성화
+- [x] flake8/mypy 에러 → 전체 코드 품질 개선
 
-#### 4.5.1 테스트 커버리지 개선
+### Phase 3: 학습 파이프라인 고도화 (다음 단계)
+
+#### 3.1 테스트 커버리지 개선
 - [ ] `src/training/evaluate.py`: 18% → 70%
   - [ ] 평가 함수 전체 실행 테스트
   - [ ] Confusion matrix 생성 테스트
   - [ ] Per-class metrics 계산 테스트
   - [ ] 시각화 저장 테스트
+- [ ] `src/data/dataset.py`: 51% → 80%
+- [ ] `src/training/train.py`: 52% → 80%
 
-#### 4.5.2 타입 안전성 강화
+#### 3.2 타입 안전성 강화
 - [ ] mypy strict 모드 활성화
 - [ ] 모든 함수에 타입 힌트 추가
 - [ ] Protocol/TypedDict 활용
+
+#### 3.3 분산 학습 지원
+- [ ] PyTorch DDP (Distributed Data Parallel) 구현
+- [ ] Multi-GPU 학습 지원
+- [ ] 학습 속도 벤치마크
+
+#### 3.4 하이퍼파라미터 튜닝 자동화
+- [ ] Optuna 통합
+- [ ] MLflow와 Optuna 연동
+- [ ] 베이지안 최적화 적용
+- [ ] 최적 하이퍼파라미터 자동 로깅
+
+#### 3.5 모델 레지스트리
+- [ ] MLflow Model Registry 활용
+- [ ] 모델 버전 관리
+- [ ] Stage 관리 (Staging, Production)
+- [ ] 모델 비교 및 롤백 기능
 
 ### Phase 5: 모델 개선 및 실험
 
@@ -320,4 +364,4 @@ with DAG('vision_training_daily') as dag:
 
 ---
 
-**다음 작업**: Phase 4 시작 (테스트 커버리지 개선, CI/CD 구축)
+**다음 작업**: Phase 3 시작 (학습 파이프라인 고도화)

@@ -11,19 +11,29 @@
 - [프로젝트 구조](#프로젝트-구조)
 - [사용법](#사용법)
 - [테스트](#테스트)
+- [CI/CD](#cicd)
 - [MLflow 추적](#mlflow-추적)
 - [확장 가이드](#확장-가이드)
 - [AI 엔지니어 협업 워크플로우](#ai-엔지니어-협업-워크플로우)
 
 ## 주요 특징
 
-- **프로덕션급 아키텍처**: Pydantic 설정 관리, 구조화된 로깅, 타입 힌팅
-- **MLflow 통합**: 완전한 실험 추적, 모델 버전 관리, 아티팩트 저장
-- **확장 가능한 인프라**: Docker Compose (로컬) → Terraform → Kubernetes (프로덕션)
-- **경량 비전 모델**: MobileNetV3-Small (M2 Mac 최적화)
-- **공공 데이터셋**: CIFAR-10 (60,000 이미지, 10 클래스)
-- **자동화된 평가**: Confusion matrix, per-class metrics 시각화
-- **완전한 테스트 커버리지**: 52개 테스트, 56% 커버리지, MLflow 통합 테스트 포함
+### 🏗️ 인프라 & 아키텍처
+- **프로덕션급 설계**: Pydantic 설정 관리, 구조화된 로깅, 타입 힌팅
+- **MLflow 완전 통합**: 실험 추적, 모델 버전 관리, 아티팩트 저장 (PostgreSQL + MinIO)
+- **Docker 표준화**: Python 버전 무관, 일관된 환경 보장
+- **확장 가능**: Docker Compose (로컬) → Kubernetes (프로덕션)
+
+### 🤖 모델 & 데이터
+- **경량 비전 모델**: MobileNetV3-Small/Large, ResNet18
+- **다중 데이터셋**: CIFAR-10/100, Fashion-MNIST
+- **M2 GPU 최적화**: MPS backend 지원
+
+### ✅ 품질 & 자동화
+- **자동화 테스트**: 52개 테스트, 56.61% 커버리지
+- **CI/CD 파이프라인**: GitHub Actions (테스트, 린팅, 보안 스캔)
+- **코드 품질**: Black, isort, flake8, mypy, Bandit
+- **Pre-commit Hooks**: 로컬 개발 품질 보장
 
 ## 아키텍처
 
@@ -253,9 +263,11 @@ poetry run pytest tests/test_e2e.py::TestMLflowIntegrationE2E -v
 - ✅ 커버리지 리포트 (Codecov)
 
 **2. Docker 이미지 빌드** ([.github/workflows/docker.yml](.github/workflows/docker.yml))
+- 🔧 **수동 실행만** (디스크 공간 및 리소스 절약)
 - 🐳 Production 이미지: `ghcr.io/[username]/mlflow-study:latest`
 - 🐳 Development 이미지: `ghcr.io/[username]/mlflow-study:development-latest`
 - 🐳 MLflow Server 이미지: `ghcr.io/[username]/mlflow-study-mlflow:latest`
+- 💡 로컬 개발은 `docker-compose` 사용
 
 **3. 릴리스 자동화** ([.github/workflows/release.yml](.github/workflows/release.yml))
 - 📦 태그 푸시 시 자동 릴리스 생성
@@ -290,9 +302,17 @@ make test-docker
 | 이벤트 | 트리거되는 워크플로우 |
 |--------|---------------------|
 | Pull Request → main/develop | Tests, Lint, Security |
-| Push → main | Tests + Docker Build |
-| Tag push (v*.*.*) | Release + E2E Tests + Docker Build |
-| Manual workflow dispatch | Docker Build |
+| Push → main/develop | Tests, Lint, Security |
+| Tag push (v*.*.*) | Release + E2E Tests |
+| Manual workflow dispatch | Docker Build (수동만) |
+
+### 상세 가이드
+
+CI/CD 파이프라인에 대한 상세한 내용은 [CICD.md](CICD.md)를 참조하세요:
+- 워크플로우 구조 및 동작 원리
+- 로컬 개발 도구 사용법
+- 문제 해결 가이드
+- 커스터마이징 방법
 
 ### 배지 (Badges)
 

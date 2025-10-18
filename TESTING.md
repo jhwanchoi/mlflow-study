@@ -431,18 +431,44 @@ poetry run pytest -m "not slow"
 poetry run pytest -m "not requires_gpu"
 ```
 
-## 테스트 실행 체크리스트
+## CI/CD 통합
 
-커밋 전:
-- [ ] `make test` 실행 (또는 `poetry run pytest`)
+### GitHub Actions 자동 테스트
+
+모든 push와 PR에 대해 자동으로 테스트가 실행됩니다:
+
+```yaml
+# .github/workflows/test.yml
+- Docker 기반 테스트 실행
+- 코드 품질 검사 (Black, isort, flake8, mypy)
+- 보안 스캔 (Trivy)
+- Codecov 자동 업로드
+```
+
+**로컬에서 CI/CD 환경 재현**:
+```bash
+# Docker 환경에서 테스트 (CI/CD와 동일)
+make test-docker
+
+# Pre-commit hooks 설치 (코드 품질 자동 검사)
+make pre-commit-install
+```
+
+### 테스트 실행 체크리스트
+
+커밋 전 (로컬):
+- [ ] `make test` 또는 `poetry run pytest` 실행
 - [ ] 모든 테스트 통과 확인
 - [ ] 커버리지 50% 이상 확인
 - [ ] 새 기능에 대한 테스트 추가
+- [ ] Pre-commit hooks 통과 (설치한 경우)
 
-PR 전:
-- [ ] 전체 테스트 스위트 실행 (`pytest tests/`)
-- [ ] 느린 테스트 포함 실행 확인
-- [ ] 커버리지 리포트 생성 및 확인
+PR 전 (CI/CD 확인):
+- [ ] GitHub Actions 워크플로우 통과 확인
+- [ ] 전체 테스트 스위트 실행 확인
+- [ ] 코드 품질 검사 통과 (Black, isort, flake8, mypy)
+- [ ] 보안 스캔 통과
+- [ ] Codecov 리포트 확인
 
 ## 추가 자료
 
