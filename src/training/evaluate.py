@@ -64,7 +64,7 @@ def evaluate_model(
     # Convert to numpy arrays
     pred_array = np.array(all_predictions)
     target_array = np.array(all_targets)
-    probs_array = np.array(all_probs)
+    # Note: all_probs collected for future use (ROC curves, calibration plots, etc.)
 
     # Calculate accuracy
     accuracy = 100.0 * float(np.sum(pred_array == target_array)) / len(target_array)
