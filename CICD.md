@@ -8,7 +8,7 @@ GitHub Actions를 사용한 완전 자동화 CI/CD 파이프라인:
 - ✅ 자동화된 테스트 (52개, 56% 커버리지)
 - ✅ 코드 품질 검사 (Black, isort, flake8, mypy)
 - ✅ 보안 스캔 (Trivy, Bandit)
-- ✅ Docker 이미지 자동 빌드 및 푸시
+- 🔧 Docker 이미지 빌드 (수동 실행만, 로컬 개발용)
 - ✅ 릴리스 자동화
 
 ---
@@ -46,7 +46,13 @@ GitHub Actions를 사용한 완전 자동화 CI/CD 파이프라인:
 
 ### 2. Docker Build ([.github/workflows/docker.yml](.github/workflows/docker.yml))
 
-**트리거**: main 브랜치 푸시, 태그 푸시, 수동 실행
+> ⚠️ **기본적으로 비활성화됨**: 디스크 공간 및 CI/CD 리소스 절약을 위해 자동 실행 비활성화
+>
+> **로컬 개발**: `docker-compose`를 사용하여 이미지 빌드 및 실행
+>
+> **수동 실행**: GitHub Actions 페이지에서 "Run workflow" 버튼으로 필요시 실행 가능
+
+**트리거**: 수동 실행만 (workflow_dispatch)
 
 **Job 1: build-and-push** - 학습 이미지
 ```yaml
@@ -65,6 +71,15 @@ For each target:
 ```yaml
 - Build Dockerfile.mlflow
 - Push to ghcr.io/[user]/mlflow-study-mlflow
+```
+
+**로컬 사용법**:
+```bash
+# Development 환경 시작
+make up
+
+# 또는 직접 Docker Compose 사용
+docker-compose up -d
 ```
 
 ### 3. Release ([.github/workflows/release.yml](.github/workflows/release.yml))

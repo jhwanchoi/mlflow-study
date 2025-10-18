@@ -1,11 +1,14 @@
 name: Docker Build and Push
 
+# Disabled by default to save CI/CD resources and disk space
+# Docker images are built locally using docker-compose for development
+# Enable this workflow manually via workflow_dispatch if needed for deployment
 on:
-  push:
-    branches: [main]
-    tags:
-      - 'v*.*.*'
-  workflow_dispatch:
+  # push:
+  #   branches: [main]
+  #   tags:
+  #     - 'v*.*.*'
+  workflow_dispatch:  # Manual trigger only
 
 env:
   REGISTRY: ghcr.io
