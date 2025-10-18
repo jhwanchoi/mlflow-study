@@ -20,21 +20,24 @@ jobs:
           echo "=== Before cleanup ==="
           df -h
 
-          # Remove unnecessary software
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-
-          # Remove more unused tools
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /usr/share/swift
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-
-          # Clean apt cache
+          # Remove large packages
+          sudo apt-get remove -y '^dotnet-.*' '^llvm-.*' 'php.*' '^mongodb-.*' '^mysql-.*' azure-cli google-chrome-stable firefox powershell mono-devel libgl1-mesa-dri || true
+          sudo apt-get autoremove -y
           sudo apt-get clean
 
-          # Clean docker
+          # Remove large directories
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/graalvm/
+          sudo rm -rf /usr/local/.ghcup/
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/local/share/chromium
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/local/lib/node_modules
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+          # Clean docker completely
           sudo docker system prune -af --volumes
 
           echo "=== After cleanup ==="
@@ -51,8 +54,8 @@ jobs:
           target: development
           tags: mlflow-vision-training:test
           load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=min  # Use min mode to save space
+          # Disable cache completely to save disk space
+          no-cache: true
 
       - name: Run fast tests
         run: |
