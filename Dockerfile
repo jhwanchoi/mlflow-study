@@ -46,8 +46,11 @@ FROM base as development
 # Install development dependencies
 RUN poetry install --no-root
 
-# Copy source code
-COPY . .
+# Copy source code and tests
+COPY src/ ./src/
+COPY tests/ ./tests/
+COPY pytest.ini ./
+COPY .env.example ./.env
 
 # Set Python path
 ENV PYTHONPATH=/app

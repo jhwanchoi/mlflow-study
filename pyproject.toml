@@ -7,7 +7,10 @@ readme = "README.md"
 packages = [{include = "src"}]
 
 [tool.poetry.dependencies]
-python = "^3.14"
+python = ">=3.9,<3.14"  # Flexible for local dev, Docker uses 3.11
+torch = "^2.1.0"  # PyTorch for model training
+torchvision = "^0.16.0"  # Vision datasets and models
+numpy = "^1.24.0"  # Required by PyTorch and data processing
 mlflow = "^2.10.0"
 pydantic = "^2.5.0"
 pydantic-settings = "^2.1.0"
@@ -29,6 +32,8 @@ mypy = "^1.7.0"
 isort = "^5.13.0"
 ipython = "^8.18.0"
 jupyter = "^1.0.0"
+pre-commit = "^3.6.0"
+bandit = {extras = ["toml"], version = "^1.7.6"}
 
 [tool.black]
 line-length = 100
@@ -70,6 +75,15 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --cov=src --cov-report=term-missing --cov-report=html"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests", "venv", ".venv"]
+skips = ["B101", "B601"]
 
 [build-system]
 requires = ["poetry-core"]

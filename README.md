@@ -57,82 +57,57 @@
 
 ## 요구사항
 
-- **MacBook M2 Air** (또는 Apple Silicon Mac)
-- **Python 3.9+** (3.13.2 권장)
-- **Docker & Docker Compose**
-- **Poetry** (의존성 관리)
+### 🐳 Docker 워크플로우 (권장)
+- **Docker & Docker Compose** (필수)
 - **Make** (편의 명령어)
 
-## 빠른 시작
+### 🐍 로컬 개발 워크플로우 (선택)
+- **Python 3.9-3.13** (Docker는 3.11 고정)
+- **Poetry** (의존성 관리)
 
-### 1. 환경 설정
+**참고**: Docker 워크플로우는 Python 버전 의존성 문제를 완전히 해결하며, 모든 PC에서 동일한 환경을 보장합니다.
+
+## 빠른 시작 (5분)
+
+### 🐳 Docker 워크플로우 (권장)
 
 ```bash
-# 저장소 클론 (또는 기존 디렉토리 사용)
-cd mlflow-study
-
-# Poetry 설치 (없는 경우)
-curl -sSL https://install.python-poetry.org | python3 -
-
-# 의존성 설치
-make install
-
-# 환경 변수 설정
+# 1. 환경 변수 설정
 make setup
-# .env 파일을 확인하고 필요시 수정하세요
-```
 
-### 2. MLflow 인프라 시작
-
-**방법 A: Docker Compose (권장)**
-
-```bash
-# 인프라 시작
+# 2. MLflow 인프라 시작
 make start
 
-# 상태 확인
-make status
+# 3. 모델 학습 (Docker 컨테이너)
+make train-docker
 
-# 로그 확인
-make logs
-```
-
-**방법 B: Terraform (선택사항)**
-
-```bash
-# Terraform 초기화
-make tf-init
-
-# 인프라 배포
-make tf-apply
-```
-
-### 3. MLflow UI 확인
-
-```bash
-# 브라우저에서 열기
+# 4. MLflow UI 확인
 make mlflow-ui
-
-# 또는 직접 접속
-open http://localhost:5000
+# → http://localhost:5001
 ```
 
-### 4. 모델 학습
+### 🐍 로컬 개발 워크플로우 (선택)
 
 ```bash
-# 로컬에서 학습 (M2 GPU 활용)
+# 1. 의존성 설치
+make install
+
+# 2. 환경 변수 설정
+make setup
+
+# 3. MLflow 인프라 시작
+make start
+
+# 4. 모델 학습 (로컬 Python)
 make train
 
-# 또는 Docker 컨테이너에서 학습
-make train-docker
+# 5. MLflow UI 확인
+make mlflow-ui
 ```
 
-### 5. 모델 평가
-
-```bash
-# MLflow UI에서 Run ID 복사 후
-make evaluate RUN_ID=<your_run_id>
-```
+**참고**:
+- Docker 워크플로우는 **Python 버전 걱정 없음** (모든 PC 동일 환경)
+- 로컬 워크플로우는 M2 GPU 활용 가능 (Python 3.9-3.13 필요)
 
 ## 프로젝트 구조
 
@@ -200,6 +175,16 @@ make jupyter
 
 ### 테스트 실행
 
+**Docker 워크플로우 (권장)**:
+```bash
+# Docker 컨테이너에서 전체 테스트 실행 (Python 버전 무관)
+make test-docker
+
+# 빠른 테스트만 (slow 마커 제외)
+make test-docker-fast
+```
+
+**로컬 개발 워크플로우**:
 ```bash
 # 전체 테스트 실행 (빠른 테스트만, ~8초)
 make test
@@ -252,6 +237,71 @@ poetry run pytest tests/test_e2e.py::TestMLflowIntegrationE2E -v
 **중요**: 테스트는 임시 디렉토리(`/tmp/pytest-xxx/mlflow`)를 사용하며, 테스트 종료 시 모든 데이터가 자동 삭제됩니다. 프로덕션 MLflow 서버(`http://localhost:5001`)는 영향받지 않습니다.
 
 더 자세한 내용은 [TESTING.md](TESTING.md)를 참고하세요.
+
+## CI/CD 파이프라인
+
+이 프로젝트는 GitHub Actions를 사용한 완전 자동화 CI/CD 파이프라인을 포함합니다.
+
+### 자동화된 워크플로우
+
+**1. 테스트 및 코드 품질** ([.github/workflows/test.yml](.github/workflows/test.yml))
+- ✅ Docker 컨테이너에서 52개 테스트 실행
+- ✅ 코드 포맷 검사 (Black, isort)
+- ✅ 린팅 (flake8)
+- ✅ 타입 체킹 (mypy)
+- ✅ 보안 스캔 (Trivy)
+- ✅ 커버리지 리포트 (Codecov)
+
+**2. Docker 이미지 빌드** ([.github/workflows/docker.yml](.github/workflows/docker.yml))
+- 🐳 Production 이미지: `ghcr.io/[username]/mlflow-study:latest`
+- 🐳 Development 이미지: `ghcr.io/[username]/mlflow-study:development-latest`
+- 🐳 MLflow Server 이미지: `ghcr.io/[username]/mlflow-study-mlflow:latest`
+
+**3. 릴리스 자동화** ([.github/workflows/release.yml](.github/workflows/release.yml))
+- 📦 태그 푸시 시 자동 릴리스 생성
+- 📝 변경사항 자동 생성
+- 🧪 전체 E2E 테스트 실행 (slow 포함)
+
+### 로컬 개발 워크플로우
+
+**Pre-commit Hook 설정** (권장):
+```bash
+# Pre-commit hooks 설치
+make pre-commit-install
+
+# 수동으로 전체 파일 검사
+make pre-commit-run
+```
+
+**코드 품질 검사**:
+```bash
+# 코드 포맷팅
+make format
+
+# 린팅
+make lint
+
+# 전체 테스트 (Docker)
+make test-docker
+```
+
+### CI/CD 트리거 조건
+
+| 이벤트 | 트리거되는 워크플로우 |
+|--------|---------------------|
+| Pull Request → main/develop | Tests, Lint, Security |
+| Push → main | Tests + Docker Build |
+| Tag push (v*.*.*) | Release + E2E Tests + Docker Build |
+| Manual workflow dispatch | Docker Build |
+
+### 배지 (Badges)
+
+README 상단에 추가 권장:
+```markdown
+![Tests](https://github.com/[username]/mlflow-study/workflows/Tests/badge.svg)
+![Docker](https://github.com/[username]/mlflow-study/workflows/Docker%20Build%20and%20Push/badge.svg)
+[![codecov](https://codecov.io/gh/[username]/mlflow-study/branch/main/graph/badge.svg)](https://codecov.io/gh/[username]/mlflow-study)
+```
 
 ### 고급 설정
 

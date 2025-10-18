@@ -121,6 +121,15 @@ evaluate: ## Evaluate model (requires RUN_ID environment variable)
 
 ##@ Development
 
+pre-commit-install: ## Install pre-commit hooks
+	@echo "$(BLUE)Installing pre-commit hooks...$(NC)"
+	poetry run pre-commit install
+	@echo "$(GREEN)Pre-commit hooks installed!$(NC)"
+
+pre-commit-run: ## Run pre-commit on all files
+	@echo "$(BLUE)Running pre-commit on all files...$(NC)"
+	poetry run pre-commit run --all-files
+
 format: ## Format code with black and isort
 	@echo "$(BLUE)Formatting code...$(NC)"
 	poetry run black src/ tests/
@@ -152,6 +161,25 @@ test-coverage: ## Generate detailed coverage report
 	poetry run pytest tests/ --cov=src --cov-report=html --cov-report=term-missing
 	@echo "$(GREEN)Coverage report generated!$(NC)"
 	@echo "Open htmlcov/index.html to view"
+
+test-docker: ## Run tests in Docker container (isolated environment)
+	@echo "$(BLUE)Building test Docker image...$(NC)"
+	docker build -t mlflow-vision-training:test --target development .
+	@echo "$(BLUE)Running tests in container...$(NC)"
+	docker run --rm \
+		-v $(PWD)/htmlcov:/app/htmlcov \
+		mlflow-vision-training:test \
+		poetry run pytest tests/ -v --cov=src --cov-report=html --cov-report=term
+	@echo "$(GREEN)Tests complete! Coverage report: htmlcov/index.html$(NC)"
+
+test-docker-fast: ## Run fast tests in Docker container
+	@echo "$(BLUE)Building test Docker image...$(NC)"
+	docker build -t mlflow-vision-training:test --target development .
+	@echo "$(BLUE)Running fast tests in container...$(NC)"
+	docker run --rm \
+		mlflow-vision-training:test \
+		poetry run pytest tests/ -v -m "not slow" --cov=src --cov-report=term
+	@echo "$(GREEN)Fast tests complete!$(NC)"
 
 jupyter: ## Start Jupyter notebook server
 	@echo "$(BLUE)Starting Jupyter notebook...$(NC)"

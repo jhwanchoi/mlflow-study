@@ -59,5 +59,5 @@ docs/
 # MacOS
 .DS_Store
 
-# Tests
-tests/
+# Tests (Note: tests/ is needed for development stage Docker builds)
+# tests/
