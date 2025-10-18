@@ -15,6 +15,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo docker system prune -af
+          df -h
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -101,6 +110,9 @@ jobs:
   security:
     name: Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # Required for uploading SARIF results
 
     steps:
       - name: Checkout code
@@ -120,3 +132,4 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
+        continue-on-error: true  # Don't fail if upload fails
