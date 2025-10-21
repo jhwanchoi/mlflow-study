@@ -1,0 +1,136 @@
+# Default values for Ray Cluster
+image:
+  repository: rayproject/ray
+  pullPolicy: IfNotPresent
+  tag: "2.9.0-py310"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Ray Head Node Configuration
+head:
+  replicas: 1
+
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 8Gi
+    requests:
+      cpu: 1000m
+      memory: 4Gi
+
+  # Ray head service ports
+  ports:
+    client: 10001
+    dashboard: 8265
+    redis: 6379
+    gcs: 6380
+
+  # Environment variables
+  env: []
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Ray Worker Configuration
+worker:
+  replicas: 2
+
+  minReplicas: 1
+  maxReplicas: 10
+
+  resources:
+    limits:
+      cpu: 4000m
+      memory: 16Gi
+    requests:
+      cpu: 2000m
+      memory: 8Gi
+
+  # For GPU workers
+  gpu:
+    enabled: false
+    count: 1
+    type: "nvidia.com/gpu"
+
+  env: []
+
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - worker
+            topologyKey: kubernetes.io/hostname
+
+# Service Account Configuration (IRSA)
+serviceAccount:
+  create: true
+  annotations:
+    # IAM Role ARN from Terraform output
+    # Get from: terraform output -raw ray_iam_role_arn
+    eks.amazonaws.com/role-arn: ""
+  name: "ray-sa"
+
+# Service Configuration
+service:
+  type: ClusterIP
+  headService:
+    port: 8265
+  clientPort: 10001
+
+# Ingress for Ray Dashboard
+ingress:
+  enabled: false
+  className: "alb"
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+  hosts:
+    - host: ray-dashboard.mdpg.ai
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Autoscaling Configuration
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Security Context
+podSecurityContext:
+  runAsNonRoot: false
+  fsGroup: 1000
+
+# Container Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# AWS Region
+awsRegion: "us-west-2"
+
+# MLflow Integration
+mlflow:
+  trackingUri: ""  # e.g., https://mlflow.mdpg.ai
+
+# Pod Annotations
+podAnnotations: {}
+
+# Pod Labels
+podLabels: {}

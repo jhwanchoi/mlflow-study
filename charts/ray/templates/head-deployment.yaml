@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ray.fullname" . }}-head
+  labels:
+    {{- include "ray.labels" . | nindent 4 }}
+    app.kubernetes.io/component: head
+spec:
+  replicas: {{ .Values.head.replicas }}
+  selector:
+    matchLabels:
+      {{- include "ray.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: head
+  template:
+    metadata:
+      labels:
+        {{- include "ray.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: head
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ray.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: ray-head
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["ray"]
+        args:
+          - "start"
+          - "--head"
+          - "--port={{ .Values.service.clientPort }}"
+          - "--dashboard-host=0.0.0.0"
+          - "--dashboard-port={{ .Values.head.ports.dashboard }}"
+          - "--redis-port={{ .Values.head.ports.redis }}"
+          - "--block"
+        ports:
+        - name: client
+          containerPort: {{ .Values.service.clientPort }}
+        - name: dashboard
+          containerPort: {{ .Values.head.ports.dashboard }}
+        - name: redis
+          containerPort: {{ .Values.head.ports.redis }}
+        - name: gcs
+          containerPort: {{ .Values.head.ports.gcs }}
+        env:
+        - name: AWS_REGION
+          value: "{{ .Values.awsRegion }}"
+        - name: RAY_GRAFANA_IFRAME_HOST
+          value: ""
+        - name: RAY_PROMETHEUS_HOST
+          value: ""
+        {{- if .Values.mlflow.trackingUri }}
+        - name: MLFLOW_TRACKING_URI
+          value: "{{ .Values.mlflow.trackingUri }}"
+        {{- end }}
+        {{- with .Values.head.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.head.resources | nindent 12 }}
+      {{- with .Values.head.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.head.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.head.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,18 @@
+apiVersion: v2
+name: ray
+description: A Helm chart for deploying Ray Cluster on Kubernetes for distributed ML training
+type: application
+version: 1.0.0
+appVersion: "2.9.0"
+keywords:
+  - ray
+  - distributed-computing
+  - machine-learning
+  - ray-tune
+  - mlops
+home: https://ray.io
+sources:
+  - https://github.com/ray-project/ray
+maintainers:
+  - name: MDPG Team
+    email: mlops@mdpg.ai
