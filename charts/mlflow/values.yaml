@@ -1,0 +1,209 @@
+# Default values for MLflow Helm chart
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 2
+
+image:
+  repository: ghcr.io/mlflow/mlflow
+  pullPolicy: IfNotPresent
+  tag: "v2.8.1"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# MLflow Configuration
+mlflow:
+  # Backend store URI (PostgreSQL from Terraform output)
+  # Format: postgresql://username:password@host:port/database
+  # Get from: terraform output -raw mlflow_backend_store_uri
+  backendStoreUri: ""
+
+  # Artifact root (S3 from Terraform output)
+  # Format: s3://bucket-name/
+  # Get from: terraform output -raw mlflow_artifact_root
+  artifactRoot: ""
+
+  # Default artifact root (fallback)
+  defaultArtifactRoot: ""
+
+  # MLflow server host
+  host: "0.0.0.0"
+
+  # MLflow server port
+  port: 5000
+
+  # Workers (gunicorn workers)
+  workers: 4
+
+  # Enable authentication
+  authentication:
+    enabled: true
+    # Admin credentials (change these!)
+    adminUsername: "admin"
+    adminPassword: "changeme"  # Use secret in production
+
+  # Extra environment variables
+  extraEnv: []
+    # - name: CUSTOM_VAR
+    #   value: "custom-value"
+
+# Service Account Configuration (IRSA)
+serviceAccount:
+  create: true
+  annotations:
+    # IAM Role ARN from Terraform output
+    # Get from: terraform output -raw mlflow_iam_role_arn
+    eks.amazonaws.com/role-arn: ""
+  name: "mlflow-sa"
+
+# Service Configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 5000
+  annotations: {}
+
+# Ingress Configuration (ALB)
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    # ALB Ingress Controller annotations
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    # alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:region:account:certificate/xxx"  # Add your ACM certificate
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '30'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '3'
+    alb.ingress.kubernetes.io/success-codes: '200'
+  hosts:
+    - host: mlflow.mdpg.ai
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: mlflow-tls
+  #    hosts:
+  #      - mlflow.mdpg.ai
+
+# Resource Limits
+resources:
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+  requests:
+    cpu: 500m
+    memory: 2Gi
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Liveness and Readiness Probes
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# Node Selection
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - mlflow
+          topologyKey: kubernetes.io/hostname
+
+# Pod Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Container Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+# Persistence for local artifact storage (optional, when not using S3)
+persistence:
+  enabled: false
+  storageClass: "gp3"
+  accessMode: ReadWriteOnce
+  size: 100Gi
+
+# Database Secret (alternative to inline backendStoreUri)
+# Use this for better security instead of hardcoding credentials
+databaseSecret:
+  enabled: false
+  secretName: "mlflow-db-secret"
+  # Keys in the secret
+  usernameKey: "username"
+  passwordKey: "password"
+  hostKey: "host"
+  portKey: "port"
+  databaseKey: "database"
+
+# AWS Region (for S3 access)
+awsRegion: "us-west-2"
+
+# Logging configuration
+logging:
+  level: "INFO"
+
+# Metrics and Monitoring
+metrics:
+  enabled: false
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+
+# Pod Annotations
+podAnnotations: {}
+
+# Pod Labels
+podLabels: {}

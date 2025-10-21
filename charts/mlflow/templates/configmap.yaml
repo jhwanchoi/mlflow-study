@@ -1,0 +1,15 @@
+{{- if .Values.mlflow.authentication.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mlflow.fullname" . }}-auth-config
+  labels:
+    {{- include "mlflow.labels" . | nindent 4 }}
+data:
+  auth-config.ini: |
+    [mlflow]
+    default_permission = READ
+    database_uri = sqlite:////tmp/mlflow-auth.db
+    admin_username = {{ .Values.mlflow.authentication.adminUsername }}
+    admin_password = {{ .Values.mlflow.authentication.adminPassword }}
+{{- end }}

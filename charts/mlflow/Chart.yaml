@@ -1,0 +1,17 @@
+apiVersion: v2
+name: mlflow
+description: A Helm chart for deploying MLflow tracking server on Kubernetes
+type: application
+version: 1.0.0
+appVersion: "2.8.1"
+keywords:
+  - mlflow
+  - machine-learning
+  - model-tracking
+  - mlops
+home: https://mlflow.org
+sources:
+  - https://github.com/mlflow/mlflow
+maintainers:
+  - name: MDPG Team
+    email: mlops@mdpg.ai
