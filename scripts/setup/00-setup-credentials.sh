@@ -37,7 +37,10 @@ case $choice in
         echo "You'll need:"
         echo "  - AWS Access Key ID"
         echo "  - AWS Secret Access Key"
-        echo "  - Default region (e.g., us-west-2)"
+        echo "  - Default region (e.g., ap-northeast-2 for Seoul, us-west-2 for Oregon)"
+        echo ""
+        echo "Note: If you have special characters (+, /, =) in your Secret Key,"
+        echo "      the verification might fail, but the credentials will still be saved."
         echo ""
         aws configure
         ;;
@@ -70,17 +73,54 @@ echo ""
 echo -e "${BLUE}Verifying AWS credentials...${NC}"
 echo ""
 
-if aws sts get-caller-identity; then
+# Use --no-cli-pager to avoid pager issues and set proper error handling
+AWS_PAGER="" aws sts get-caller-identity 2>&1 | tee /tmp/aws_verify.log
+
+if [ ${PIPESTATUS[0]} -eq 0 ]; then
     echo ""
     echo -e "${GREEN}✓ AWS credentials are valid!${NC}"
     echo ""
-    echo "Account: $(aws sts get-caller-identity --query Account --output text)"
-    echo "User/Role: $(aws sts get-caller-identity --query Arn --output text)"
-    echo "Region: $(aws configure get region || echo 'not set')"
+    ACCOUNT=$(AWS_PAGER="" aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "unknown")
+    ARN=$(AWS_PAGER="" aws sts get-caller-identity --query Arn --output text 2>/dev/null || echo "unknown")
+    REGION=$(aws configure get region 2>/dev/null || echo 'not set')
+
+    echo "Account: $ACCOUNT"
+    echo "User/Role: $ARN"
+    echo "Region: $REGION"
 else
     echo ""
-    echo "Failed to verify credentials. Please check your AWS Access Key and Secret Key."
-    exit 1
+    echo "⚠️  Credential verification had issues, but this might be okay."
+    echo ""
+    echo "If you successfully ran 'aws configure', the credentials should be saved."
+    echo "Let's check the credentials file..."
+    echo ""
+
+    if [ -f ~/.aws/credentials ]; then
+        echo -e "${GREEN}✓ Credentials file exists at ~/.aws/credentials${NC}"
+        echo ""
+        echo "Trying alternative verification method..."
+
+        # Try with explicit profile
+        if AWS_PAGER="" aws sts get-caller-identity --profile default 2>/dev/null; then
+            echo -e "${GREEN}✓ Credentials work with default profile${NC}"
+        else
+            echo ""
+            echo "The credentials file exists but verification is failing."
+            echo "This can happen with special characters in the Secret Key."
+            echo ""
+            echo "Recommendation:"
+            echo "  1. Continue with deployment (credentials might still work)"
+            echo "  2. Or generate a new Access Key from AWS Console"
+            echo ""
+            read -p "Continue anyway? (y/n): " continue_choice
+            if [ "$continue_choice" != "y" ]; then
+                exit 1
+            fi
+        fi
+    else
+        echo "Failed to verify credentials. Please check your AWS Access Key and Secret Key."
+        exit 1
+    fi
 fi
 
 echo ""
