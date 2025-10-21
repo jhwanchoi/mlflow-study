@@ -1,7 +1,52 @@
 # MLflow Vision Training System - 프로젝트 진행 현황 및 계획
 
 **작성일**: 2025-10-18
-**버전**: 2.0
+**최종 업데이트**: 2025-10-21
+**버전**: 3.0
+
+---
+
+## 🔄 프로젝트 방향 변경 (2025-10-21)
+
+### 배경
+초기 계획은 로컬 환경에서의 개발과 최적화(Phase 3-4)에 집중했으나, 프로젝트 목표가 **전사 확장 가능한 MLOps 플랫폼 구축**으로 재정의되었습니다.
+
+### 새로운 요구사항
+- **멀티 유저 지원**: MLOps 엔지니어 2명, ML 엔지니어 1명 (향후 확장)
+- **중앙화된 MLflow 서버**: 실험 추적 및 모델 레지스트리 공유
+- **분산 하이퍼파라미터 최적화**: 100+ trials 병렬 실행
+- **확장 가능한 인프라**: 추가 서비스 통합 예정 (6개월 내)
+
+### 아키텍처 결정
+| 항목 | 선택 | 대안 | 결정 근거 |
+|------|------|------|-----------|
+| 컨테이너 오케스트레이션 | AWS EKS | AWS ECS Fargate | 마이그레이션 비용 $14.5k 절감, 팀 K8s 경험 보유 |
+| 하이퍼파라미터 튜닝 | Ray Tune | Optuna | 분산 실행, GPU 자동 스케줄링, 100+ trials 지원 |
+| 인프라 관리 | Terraform + Scripts | 수동 배포 | 휴먼 에러 최소화, 재현성 보장 |
+| 개발 환경 | VSCode 중심 | SageMaker | ML 엔지니어 선호도, 비용 효율성 |
+
+### 비용 분석 (12개월 기준)
+```
+시나리오 1: ECS → EKS 마이그레이션
+  - ECS 운영 (6개월): $420
+  - 마이그레이션 비용: $15,000 (인력 2주)
+  - EKS 운영 (6개월): $1,140
+  - 총계: $16,560
+
+시나리오 2: EKS 직접 구축
+  - EKS 운영 (12개월): $2,280
+  - 총계: $2,280
+
+절감액: $14,280
+```
+
+### 월 운영 비용 (EKS 기반)
+- EKS Control Plane: $73
+- Worker Nodes (t3.medium × 2): $60
+- RDS PostgreSQL (db.t3.small): $30
+- S3 + ALB: $27
+- **기본 운영: ~$190/월**
+- GPU 사용 (p3.2xlarge Spot, 20시간/월): ~$18-20
 
 ---
 
@@ -58,7 +103,7 @@
 
 ## 📋 현재 상태 요약
 
-### 시스템 아키텍처
+### 현재 아키텍처 (로컬 개발 환경)
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                 Training (Docker or Local)                   │
@@ -80,6 +125,44 @@
 │  (Metadata Store) │              │   (Artifact Store)       │
 │   ✅ MVCC 지원    │              │   ✅ boto3 연결          │
 └───────────────────┘              └──────────────────────────┘
+```
+
+### 목표 아키텍처 (Phase 5-7: EKS 기반 MLOps 플랫폼)
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                       Client Environments                         │
+│  ┌───────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
+│  │ VSCode        │  │ Jupyter Hub  │  │ CI/CD Pipelines      │  │
+│  │ (Local Dev)   │  │ (Notebooks)  │  │ (GitHub Actions)     │  │
+│  └───────┬───────┘  └──────┬───────┘  └──────┬───────────────┘  │
+│          │ MLflow Client + Ray Client │      │                   │
+└──────────┼──────────────────┼──────────────────┼──────────────────┘
+           │                  │                  │
+           └──────────────────┼──────────────────┘
+                              ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                       AWS EKS Cluster                             │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  MLflow Tracking Server (HPA: 2-5 pods)                    │  │
+│  │  - MLflow Authentication (READ/EDIT/MANAGE)                │  │
+│  │  - Ingress (ALB) with SSL                                  │  │
+│  └────────┬───────────────────────────────────┬────────────────┘  │
+│           │                                   │                   │
+│  ┌────────┴────────────┐         ┌───────────┴────────────────┐  │
+│  │  Ray Cluster        │         │  Airflow (Future)          │  │
+│  │  - Head Node        │         │  - Scheduler               │  │
+│  │  - Workers (GPU)    │         │  - Workers                 │  │
+│  │  - Auto-scaling     │         │  - DAG Execution           │  │
+│  └─────────────────────┘         └────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
+           │                                   │
+           ▼                                   ▼
+┌─────────────────────────┐     ┌──────────────────────────────────┐
+│  AWS RDS PostgreSQL     │     │  AWS S3 Bucket                   │
+│  - db.t3.small          │     │  - Versioned artifacts           │
+│  - Multi-AZ (HA)        │     │  - Lifecycle policies            │
+│  - Encrypted            │     │  - IRSA for pod access           │
+└─────────────────────────┘     └──────────────────────────────────┘
 ```
 
 ### 테스트 커버리지
@@ -106,7 +189,7 @@
 
 ---
 
-## 🎯 다음 단계 (Phase 3, 5-6)
+## 🎯 다음 단계 (Phase 5-7: EKS 기반 MLOps 플랫폼)
 
 ### Phase 4: CI/CD 파이프라인 구축 ✅ (2025-10-18 완료)
 
@@ -161,235 +244,252 @@
 - [x] Docker 빌드 디스크 부족 → 자동 빌드 비활성화
 - [x] flake8/mypy 에러 → 전체 코드 품질 개선
 
-### Phase 3: 학습 파이프라인 고도화 (계획 수립 완료)
+### Phase 5: AWS EKS 인프라 구축 (4-5주, 우선순위: Critical)
 
-**상세 계획**: [docs/phase3_plan.md](docs/phase3_plan.md)
-**추후 작업**: [TODO.md](TODO.md)
+**목표**: 중앙화된 MLflow 서버를 EKS에 배포하여 멀티 유저 환경 구축
 
-#### 개요
-- 테스트 커버리지 개선 (56% → 75%+)
-- 타입 안전성 강화 (mypy strict)
-- MLflow Model Registry 통합
-- Optuna 하이퍼파라미터 튜닝
-- DDP 분산 학습 (코드 구조, 테스트는 추후)
+**상세 문서**: [docs/eks_infrastructure.md](docs/eks_infrastructure.md) (작성 예정)
 
-#### 우선순위 및 예상 기간
-1. **Phase 3.1**: 테스트 커버리지 개선 (1-2일)
-2. **Phase 3.2**: 타입 안전성 강화 (1일)
-3. **Phase 3.5**: MLflow Model Registry (2-3일)
-4. **Phase 3.4**: Optuna 튜닝 (3-4일)
-5. **Phase 3.3**: DDP 코드 구조 (2-3일)
+#### 5.1 AWS 기본 인프라 (1주)
+- [ ] Terraform 프로젝트 구조 생성
+  - [ ] `terraform/aws-eks/main.tf` - EKS 클러스터
+  - [ ] `terraform/aws-eks/rds.tf` - PostgreSQL 데이터베이스
+  - [ ] `terraform/aws-eks/s3.tf` - S3 버킷 + 라이프사이클 정책
+  - [ ] `terraform/aws-eks/iam.tf` - IRSA (IAM Roles for Service Accounts)
+- [ ] EKS 클러스터 배포
+  - [ ] Kubernetes 1.28+
+  - [ ] t3.medium × 2 worker nodes (CPU 워크로드)
+  - [ ] Auto-scaling 그룹 설정
+- [ ] RDS PostgreSQL 배포
+  - [ ] db.t3.small (2 vCPU, 2GB RAM)
+  - [ ] Multi-AZ 배포 (고가용성)
+  - [ ] 암호화 활성화
+- [ ] S3 버킷 생성
+  - [ ] Versioning 활성화
+  - [ ] Lifecycle policy (오래된 버전 정리)
+  - [ ] IRSA 권한 설정
 
-**총 예상 기간**: 3-4주
+#### 5.2 MLflow 서버 배포 (1주)
+- [ ] Helm Chart 작성
+  - [ ] `charts/mlflow/values.yaml` - 설정 정의
+  - [ ] `charts/mlflow/templates/deployment.yaml` - MLflow 서버
+  - [ ] `charts/mlflow/templates/service.yaml` - ClusterIP 서비스
+  - [ ] `charts/mlflow/templates/ingress.yaml` - ALB Ingress
+  - [ ] `charts/mlflow/templates/hpa.yaml` - Horizontal Pod Autoscaler (2-5 pods)
+- [ ] MLflow Authentication 설정
+  - [ ] 기본 인증 (사용자명/비밀번호)
+  - [ ] 권한 관리 (READ/EDIT/MANAGE)
+  - [ ] Kubernetes Secret으로 자격증명 관리
+- [ ] SSL/TLS 설정
+  - [ ] AWS Certificate Manager 인증서 생성
+  - [ ] ALB Ingress에 HTTPS 적용
+- [ ] 배포 및 검증
+  - [ ] `helm install mlflow ./charts/mlflow`
+  - [ ] Health check 확인
+  - [ ] 로그 확인 (`kubectl logs`)
 
-#### 진행 상황
-- [ ] **Phase 3.1**: 테스트 커버리지 개선
-  - [ ] test_evaluate_extended.py 생성
-  - [ ] test_dataset_extended.py 생성
-  - [ ] test_training_extended.py 생성
-  - [ ] 전체 커버리지 75% 달성
-- [ ] **Phase 3.2**: 타입 안전성 강화
-  - [ ] types.py 생성 (TypedDict, Protocol)
-  - [ ] 모든 함수 타입 힌트 추가
-  - [ ] mypy strict 통과
-- [ ] **Phase 3.5**: MLflow Model Registry
-  - [ ] registry.py 생성
-  - [ ] train.py 통합 (자동 등록)
-  - [ ] test_registry.py 생성
-  - [ ] docs/model_registry.md 작성
-- [ ] **Phase 3.4**: Optuna 하이퍼파라미터 튜닝
-  - [ ] tuning.py 생성
-  - [ ] Optuna-MLflow 통합
-  - [ ] 50 trials 실행
-  - [ ] 90%+ 정확도 달성
-  - [ ] docs/hyperparameter_tuning.md 작성
-- [ ] **Phase 3.3**: DDP 분산 학습
-  - [ ] distributed.py 생성
-  - [ ] train_distributed.py 생성
-  - [ ] 로컬 CPU 테스트
-  - [ ] docs/distributed_training.md 작성
-  - [ ] TODO.md에 클라우드 테스트 항목 추가
+#### 5.3 클라이언트 마이그레이션 (1일)
+- [ ] VSCode 환경 설정 가이드 작성
+  - [ ] `.env.remote` 템플릿 생성
+  - [ ] 환경 변수 설정 (`MLFLOW_TRACKING_URI`, `MLFLOW_TRACKING_USERNAME`)
+- [ ] 로컬 → 원격 전환 테스트
+  - [ ] 기존 학습 코드로 실험 실행
+  - [ ] MLflow UI에서 결과 확인
+  - [ ] 아티팩트 S3 업로드 검증
+
+#### 5.4 배포 자동화 스크립트 (2-3일)
+- [ ] `scripts/setup/01-setup-aws.sh` - AWS 리소스 생성
+- [ ] `scripts/setup/02-deploy-eks.sh` - EKS 클러스터 배포
+- [ ] `scripts/setup/03-deploy-mlflow.sh` - MLflow 서버 배포
+- [ ] `scripts/setup/04-setup-users.sh` - 사용자 계정 생성
+- [ ] `scripts/setup/05-test-connection.sh` - 연결 테스트
+- [ ] `scripts/setup/06-verify-all.sh` - 전체 검증
+- [ ] `scripts/ops/backup-mlflow.sh` - 백업 스크립트
+- [ ] `scripts/ops/restore-mlflow.sh` - 복원 스크립트
 
 #### 성공 기준
-- ✅ 전체 커버리지 75%+
-- ✅ mypy strict 모드 통과
-- ✅ MLflow Model Registry 동작
-- ✅ Optuna 50 trials 완료
-- ✅ DDP 코드 구조 완성
-- 🎯 CIFAR-10 정확도 90%+ (Optuna 튜닝 후)
+- ✅ MLflow 서버가 EKS에서 안정적으로 실행
+- ✅ RDS PostgreSQL 연결 성공
+- ✅ S3 아티팩트 저장 성공
+- ✅ MLflow Authentication 동작 (최소 3명 사용자)
+- ✅ HTTPS 접속 가능
+- ✅ 모든 배포 스크립트 정상 작동
 
-#### 제약사항
-- ⚠️ M2 Mac: DDP multi-GPU 테스트 불가
-- ⚠️ DDP 실제 테스트는 클라우드 환경 필요 → [TODO.md](TODO.md) 참조
+### Phase 6: Ray Tune 하이퍼파라미터 최적화 (2-3주)
 
-### Phase 5: 모델 개선 및 실험
+**목표**: 분산 하이퍼파라미터 튜닝으로 모델 정확도 90%+ 달성
 
-#### 5.1 하이퍼파라미터 튜닝
-- [ ] MLflow로 그리드 서치 실행
-- [ ] 학습률 스케줄러 실험 (CosineAnnealing, ReduceLROnPlateau)
-- [ ] 데이터 증강 전략 비교
+**상세 문서**: [docs/ray_tune_guide.md](docs/ray_tune_guide.md) (작성 예정)
 
-#### 5.2 모델 최적화
-- [ ] Quantization (INT8)
-- [ ] Pruning (구조화/비구조화)
-- [ ] Knowledge Distillation
+#### 6.1 Ray Cluster 배포 (1주)
+- [ ] KubeRay Operator 설치
+  - [ ] `kubectl apply -f kuberay-operator.yaml`
+- [ ] Ray Cluster Helm Chart 작성
+  - [ ] `charts/ray-cluster/values.yaml`
+  - [ ] Head Node (1개, 고정)
+  - [ ] Worker Nodes (GPU, 0-5개 auto-scaling)
+- [ ] GPU 노드 그룹 추가
+  - [ ] p3.2xlarge Spot Instances
+  - [ ] Auto-scaling 설정 (최대 5개)
+- [ ] Ray Dashboard 접근 설정
+  - [ ] Ingress 또는 Port-forward
 
-#### 5.3 고급 기능
-- [ ] Early stopping 개선 (patience, min_delta)
-- [ ] Gradient clipping
-- [ ] Mixed precision training (AMP)
+#### 6.2 Ray Tune 코드 작성 (1주)
+- [ ] `src/tuning/ray_tune.py` - Ray Tune 통합
+  - [ ] 탐색 공간 정의 (learning_rate, batch_size, epochs, etc.)
+  - [ ] PyTorch Lightning Trainer 래퍼
+  - [ ] MLflow 콜백 (모든 trial 자동 기록)
+- [ ] `src/tuning/search_algorithms.py`
+  - [ ] ASHA (Asynchronous Successive Halving)
+  - [ ] Hyperband
+  - [ ] Bayesian Optimization (Optuna backend)
+- [ ] GPU 스케줄링 설정
+  - [ ] `resources_per_trial={"gpu": 1}`
+  - [ ] Fractional GPU (필요시)
 
-### Phase 6: 프로덕션 준비
+#### 6.3 실험 실행 (3-5일)
+- [ ] 100 trials 하이퍼파라미터 탐색
+  - [ ] CIFAR-10 기준
+  - [ ] 목표: Test Accuracy 90%+
+- [ ] MLflow에 모든 trial 기록
+- [ ] 최적 모델 Model Registry 등록
 
-#### 6.1 CI/CD 파이프라인
-```yaml
-# .github/workflows/test.yml
-name: Tests
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run Docker tests
-        run: make test-docker
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-```
+#### 성공 기준
+- ✅ Ray Cluster EKS에서 안정 실행
+- ✅ GPU auto-scaling 동작 (0 → 5 → 0)
+- ✅ 100 trials 완료
+- ✅ CIFAR-10 정확도 90%+ 달성
+- ✅ MLflow에 모든 실험 기록
 
-#### 6.2 모델 서빙
-- [ ] MLflow Models 서빙 (REST API)
-- [ ] FastAPI 래퍼 작성
-- [ ] 추론 최적화 (배치 처리)
+### Phase 7: DDP 분산 학습 + Airflow (2-3주)
 
-#### 6.3 모니터링
-- [ ] Prometheus metrics 노출
-- [ ] Grafana 대시보드 구축
-- [ ] 로그 집계 (ELK Stack)
+**목표**: PyTorch DDP 멀티 GPU 학습 및 Airflow 파이프라인 자동화
 
----
+**상세 문서**: [docs/distributed_training.md](docs/distributed_training.md) (작성 예정)
 
-## 🚀 Kubernetes + Airflow 확장 계획 (Phase 7-8)
+#### 7.1 PyTorch DDP 구현 (1주)
+- [ ] `src/training/distributed.py` - DDP 유틸리티
+  - [ ] `setup_distributed()` - 분산 초기화
+  - [ ] `cleanup_distributed()` - 정리
+- [ ] `src/training/train_ddp.py` - DDP 학습 스크립트
+  - [ ] `torch.distributed.launch` 지원
+  - [ ] Gradient accumulation
+  - [ ] MLflow 로깅 (rank 0만)
+- [ ] Docker 이미지 업데이트
+  - [ ] NCCL 라이브러리 포함
+  - [ ] SSH 설정 (멀티 노드 DDP)
 
-### Phase 7: Kubernetes 배포
+#### 7.2 DDP 테스트 (3-5일)
+- [ ] Ray Train으로 DDP 실행
+  - [ ] Single-node multi-GPU (p3.8xlarge, 4 GPUs)
+  - [ ] Multi-node multi-GPU (p3.2xlarge × 4, 4 GPUs)
+- [ ] 성능 벤치마크
+  - [ ] 학습 시간 비교 (단일 GPU vs 4 GPUs)
+  - [ ] Scaling efficiency 측정
 
-#### 7.1 Helm Chart 작성
-```yaml
-# helm/mlflow/values.yaml
-mlflow:
-  image: mlflow-server:v2.10.2-boto3
-  replicas: 2
-  resources:
-    requests:
-      cpu: 500m
-      memory: 1Gi
-    limits:
-      cpu: 2000m
-      memory: 4Gi
+#### 7.3 Airflow 파이프라인 (1주)
+- [ ] Airflow Helm Chart 배포
+  - [ ] `charts/airflow/values.yaml`
+  - [ ] KubernetesExecutor 설정
+- [ ] DAG 작성
+  - [ ] `dags/daily_training.py` - 일일 학습 파이프라인
+  - [ ] `dags/hyperparameter_tuning.py` - 주간 튜닝
+  - [ ] `dags/model_evaluation.py` - 모델 평가
+- [ ] MLflow 통합
+  - [ ] 학습 결과 자동 기록
+  - [ ] 최고 성능 모델 자동 등록
 
-postgresql:
-  enabled: true
-  persistence:
-    size: 10Gi
-
-minio:
-  enabled: true
-  replicas: 4  # Distributed mode
-  persistence:
-    size: 50Gi
-```
-
-#### 7.2 Terraform IaC
-```hcl
-# terraform/kubernetes/main.tf
-resource "helm_release" "mlflow" {
-  name       = "mlflow"
-  chart      = "../../helm/mlflow"
-  namespace  = "ml-platform"
-
-  values = [
-    file("${path.module}/values-prod.yaml")
-  ]
-}
-```
-
-### Phase 8: Airflow 통합
-
-#### 8.1 DAG 작성
-```python
-# airflow/dags/vision_training_pipeline.py
-from airflow import DAG
-from airflow.providers.docker.operators.docker import DockerOperator
-
-with DAG('vision_training_daily') as dag:
-    train_task = DockerOperator(
-        task_id='train_model',
-        image='mlflow-vision-training:latest',
-        environment={
-            'MLFLOW_TRACKING_URI': '{{ var.value.mlflow_uri }}',
-            'EXPERIMENT_NAME': 'production-training',
-            'EPOCHS': '50',
-        },
-        docker_url='unix://var/run/docker.sock',
-        network_mode='bridge',
-    )
-
-    evaluate_task = DockerOperator(
-        task_id='evaluate_model',
-        image='mlflow-vision-training:latest',
-        command='python -m src.training.evaluate {{ ti.xcom_pull("train_model")["run_id"] }}',
-    )
-
-    train_task >> evaluate_task
-```
+#### 성공 기준
+- ✅ DDP 멀티 GPU 학습 성공
+- ✅ 4 GPUs로 학습 시간 3x 단축
+- ✅ Airflow DAG 자동 실행 (일일 스케줄)
+- ✅ MLflow에 모든 파이프라인 결과 기록
 
 ---
 
 ## 📊 성공 기준
 
-### Phase 4 (코드 품질)
-- [ ] 전체 테스트 커버리지 70% 이상
-- [ ] mypy strict 모드 통과
-- [ ] CI/CD 파이프라인 자동화
+### Phase 4: CI/CD (완료 ✅)
+- [x] 전체 테스트 커버리지 56%+ 달성
+- [x] GitHub Actions 자동화
+- [x] 코드 품질 검사 (Black, isort, flake8, mypy)
 
-### Phase 5 (모델 개선)
-- [ ] CIFAR-10 test accuracy > 90%
-- [ ] 모델 크기 < 5MB (양자화 후)
-- [ ] 추론 속도 < 10ms/image (M2 GPU)
+### Phase 5: EKS 인프라
+- [ ] MLflow 서버 EKS 배포 성공
+- [ ] 멀티 유저 인증 동작 (3명+)
+- [ ] HTTPS 접속 가능
+- [ ] 월 운영 비용 $200 이하
 
-### Phase 6 (프로덕션)
-- [ ] MLflow 서빙 API 응답시간 < 50ms
-- [ ] Prometheus 메트릭 수집 활성화
-- [ ] 로그 검색 기능 구현
+### Phase 6: Ray Tune
+- [ ] CIFAR-10 test accuracy 90%+
+- [ ] 100 trials 완료
+- [ ] GPU auto-scaling 동작
+- [ ] MLflow에 모든 실험 자동 기록
 
-### Phase 7-8 (K8s + Airflow)
-- [ ] Kubernetes 클러스터 배포 성공
-- [ ] Airflow DAG 일일 자동 실행
+### Phase 7: DDP + Airflow
+- [ ] 멀티 GPU 학습 성공
+- [ ] 학습 시간 3x 단축 (vs 단일 GPU)
+- [ ] Airflow 일일 파이프라인 자동 실행
 - [ ] 다중 실험 동시 실행 (5개+)
 
 ---
 
 ## 🔗 참고 자료
 
-### 프로젝트 문서
+### 프로젝트 문서 (Phase 0-4: 로컬 개발)
 - [README.md](README.md): 메인 문서
-- [TESTING.md](TESTING.md): 테스트 가이드
+- [TESTING.md](TESTING.md): 테스트 가이드 (52개 테스트, 56% 커버리지)
+- [CICD.md](CICD.md): CI/CD 파이프라인 가이드
+
+### 프로젝트 문서 (Phase 5-7: EKS 확장, 작성 예정)
+- [docs/eks_infrastructure.md](docs/eks_infrastructure.md): EKS 인프라 배포 가이드
+- [docs/mlflow_remote_setup.md](docs/mlflow_remote_setup.md): MLflow 서버 설정 및 인증
+- [docs/ray_tune_guide.md](docs/ray_tune_guide.md): Ray Tune 사용 가이드
+- [docs/vscode_setup.md](docs/vscode_setup.md): VSCode 개발 환경 설정
+- [docs/deployment_scripts.md](docs/deployment_scripts.md): 배포 스크립트 사용법
+- [docs/cost_estimation.md](docs/cost_estimation.md): AWS 비용 상세 분석
+- [docs/migration_guide.md](docs/migration_guide.md): 로컬 → EKS 마이그레이션
 
 ### 외부 문서
 - [MLflow Documentation](https://mlflow.org/docs/latest/index.html)
-- [PyTorch Documentation](https://pytorch.org/docs/stable/index.html)
-- [Kubernetes Documentation](https://kubernetes.io/docs/)
-- [Airflow Documentation](https://airflow.apache.org/docs/)
+- [MLflow Authentication](https://mlflow.org/docs/latest/auth/index.html)
+- [Ray Tune Documentation](https://docs.ray.io/en/latest/tune/index.html)
+- [PyTorch DDP](https://pytorch.org/docs/stable/distributed.html)
+- [AWS EKS Best Practices](https://aws.github.io/aws-eks-best-practices/)
+- [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
 
 ---
 
 ## 🎉 주요 성과
 
+### Phase 0-4 완료 (로컬 개발 환경)
 1. **Docker 표준화** → Python 버전 의존성 완전 해결
 2. **PostgreSQL 마이그레이션** → 동시성 문제 해결
-3. **52개 자동화 테스트** → 코드 품질 보장
-4. **프로덕션급 아키텍처** → K8s 확장 준비 완료
+3. **52개 자동화 테스트** → 코드 품질 보장 (56% 커버리지)
+4. **CI/CD 파이프라인** → GitHub Actions 자동화
+
+### Phase 5-7 계획 (EKS 기반 MLOps 플랫폼)
+1. **아키텍처 재설계** → ECS 대신 EKS 직접 구축으로 $14.5k 절감
+2. **멀티 유저 지원** → MLflow Authentication + HTTPS
+3. **분산 최적화** → Ray Tune으로 100+ trials 병렬 실행
+4. **자동화 스크립트** → Terraform + Bash로 휴먼 에러 최소화
 
 ---
 
-**다음 작업**: Phase 3 시작 (학습 파이프라인 고도화)
+## 🚀 다음 작업
+
+### 즉시 시작 가능 (문서화 완료 후)
+**Phase 5.1**: AWS 기본 인프라 (1주)
+- Terraform 코드 작성 (EKS, RDS, S3)
+- AWS 리소스 배포
+- kubeconfig 설정
+
+**예상 총 기간**: Phase 5-7 완료까지 8-11주
+
+**월 운영 비용**: ~$190 (GPU 사용량 별도)
+
+---
+
+**최종 업데이트**: 2025-10-21
+**버전**: 3.0
+**상태**: Phase 5 문서화 진행 중

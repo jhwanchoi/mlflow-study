@@ -62,9 +62,84 @@
 
 ### 인프라 계층
 
-1. **로컬 개발** (현재): Docker Compose
-2. **IaC 관리** (선택): Terraform with Docker provider
-3. **프로덕션** (추후 확장): Kubernetes + Helm + Terraform
+1. **Phase 0-4: 로컬 개발** (현재 완료): Docker Compose
+2. **Phase 5-7: 프로덕션 확장** (계획 중): AWS EKS + Ray Tune + Airflow
+
+## 🚀 Production Expansion Roadmap (2025-10-21 업데이트)
+
+**프로젝트 방향**: 로컬 개발 환경에서 **전사 확장 가능한 MLOps 플랫폼**으로 전환
+
+### 현재 상태 (Phase 0-4 완료)
+- ✅ 로컬 Docker Compose 환경
+- ✅ MLflow + PostgreSQL + MinIO
+- ✅ 52개 자동화 테스트 (56% 커버리지)
+- ✅ CI/CD 파이프라인 (GitHub Actions)
+
+### 다음 단계 (Phase 5-7 계획)
+
+#### Phase 5: AWS EKS 인프라 (4-5주, ~$190/월)
+**목표**: 중앙화된 MLflow 서버 구축
+
+- AWS EKS 클러스터 (Kubernetes 1.28+)
+- RDS PostgreSQL (Multi-AZ)
+- S3 아티팩트 저장소
+- MLflow Authentication (멀티 유저)
+- HTTPS/SSL 지원
+
+**상세 문서**: [docs/eks_infrastructure.md](docs/eks_infrastructure.md) (작성 예정)
+
+#### Phase 6: Ray Tune 분산 최적화 (2-3주)
+**목표**: CIFAR-10 정확도 90%+ 달성
+
+- Ray Cluster on EKS
+- 분산 하이퍼파라미터 튜닝 (100+ trials)
+- GPU auto-scaling (p3.2xlarge Spot)
+- MLflow 자동 실험 기록
+
+**상세 문서**: [docs/ray_tune_guide.md](docs/ray_tune_guide.md) (작성 예정)
+
+#### Phase 7: DDP + Airflow (2-3주)
+**목표**: 프로덕션 파이프라인 자동화
+
+- PyTorch DDP 멀티 GPU 학습
+- Airflow DAGs (일일/주간 파이프라인)
+- 모델 자동 등록 및 배포
+
+**상세 문서**: [docs/distributed_training.md](docs/distributed_training.md) (작성 예정)
+
+### 아키텍처 비교
+
+**현재 (로컬)**:
+```
+Training (Local) → MLflow (Docker) → PostgreSQL + MinIO
+```
+
+**목표 (EKS)**:
+```
+Clients (VSCode, Jupyter)
+    ↓ MLflow Client + Ray Client
+AWS EKS Cluster
+  ├── MLflow Server (HPA: 2-5 pods)
+  ├── Ray Cluster (GPU auto-scaling)
+  └── Airflow (파이프라인)
+    ↓
+RDS PostgreSQL + S3
+```
+
+### 주요 기술 결정
+
+| 항목 | 선택 | 이유 |
+|------|------|------|
+| 인프라 | AWS EKS | 마이그레이션 비용 $14.5k 절감 |
+| 하이퍼파라미터 튜닝 | Ray Tune | 100+ trials 분산 실행 |
+| 인프라 코드 | Terraform + Bash | 휴먼 에러 최소화 |
+| 개발 환경 | VSCode 중심 | ML 엔지니어 선호 |
+
+**예상 비용**:
+- 기본 운영: ~$190/월
+- GPU 사용 (20시간/월): +$18-20
+
+**전체 계획**: [plan.md](plan.md) 참조
 
 ## 요구사항
 

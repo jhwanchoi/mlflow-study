@@ -218,6 +218,85 @@ clean-checkpoints: ## Clean model checkpoints
 
 clean-all: clean clean-data clean-checkpoints clean-infra ## Clean everything
 
+##@ Remote (EKS)
+
+remote-mlflow-ui: ## Open remote MLflow UI in browser
+	@echo "$(BLUE)Opening remote MLflow UI...$(NC)"
+	@MLFLOW_URI=$$(grep MLFLOW_TRACKING_URI .env | cut -d'=' -f2); \
+	if [ -z "$$MLFLOW_URI" ] || [ "$$MLFLOW_URI" = "http://localhost:5001" ]; then \
+		echo "$(YELLOW)Remote MLflow URI not configured in .env$(NC)"; \
+		echo "Set MLFLOW_TRACKING_URI=https://mlflow.company.com"; \
+	else \
+		echo "Opening: $$MLFLOW_URI"; \
+		open $$MLFLOW_URI || xdg-open $$MLFLOW_URI || echo "Please open $$MLFLOW_URI in your browser"; \
+	fi
+
+test-remote-connection: ## Test connection to remote MLflow server
+	@echo "$(BLUE)Testing remote MLflow connection...$(NC)"
+	@poetry run python -c "\
+import os; \
+from dotenv import load_dotenv; \
+import mlflow; \
+load_dotenv(); \
+print('MLflow URI:', os.getenv('MLFLOW_TRACKING_URI')); \
+print('Username:', os.getenv('MLFLOW_TRACKING_USERNAME')); \
+mlflow.set_experiment('connection-test'); \
+with mlflow.start_run(): \
+    mlflow.log_param('test', 'makefile'); \
+print('$(GREEN)✅ Connection successful!$(NC)'); \
+"
+
+switch-to-remote: ## Switch from local to remote MLflow
+	@echo "$(BLUE)Switching to remote MLflow...$(NC)"
+	@if [ ! -f .env.local.backup ]; then \
+		cp .env .env.local.backup; \
+		echo "$(GREEN)Backed up local .env to .env.local.backup$(NC)"; \
+	fi
+	@echo "$(YELLOW)Please update .env with remote settings:$(NC)"
+	@echo "  MLFLOW_TRACKING_URI=https://mlflow.company.com"
+	@echo "  MLFLOW_TRACKING_USERNAME=your_username"
+	@echo "  MLFLOW_TRACKING_PASSWORD=your_password"
+	@echo "  AWS_REGION=us-west-2"
+
+switch-to-local: ## Switch from remote to local MLflow
+	@echo "$(BLUE)Switching to local MLflow...$(NC)"
+	@if [ -f .env.local.backup ]; then \
+		cp .env.local.backup .env; \
+		echo "$(GREEN)Restored local .env from backup$(NC)"; \
+	else \
+		echo "$(YELLOW)No backup found, using .env.example$(NC)"; \
+		cp .env.example .env; \
+	fi
+
+##@ Deployment (EKS)
+
+deploy-eks: ## Deploy EKS infrastructure (Phase 5)
+	@echo "$(BLUE)Deploying EKS infrastructure...$(NC)"
+	@if [ -f scripts/setup/02-deploy-eks.sh ]; then \
+		./scripts/setup/02-deploy-eks.sh; \
+	else \
+		echo "$(RED)Error: scripts/setup/02-deploy-eks.sh not found$(NC)"; \
+		echo "Please create deployment scripts first"; \
+	fi
+
+deploy-mlflow: ## Deploy MLflow server on EKS
+	@echo "$(BLUE)Deploying MLflow server...$(NC)"
+	@if [ -f scripts/setup/03-deploy-mlflow.sh ]; then \
+		./scripts/setup/03-deploy-mlflow.sh; \
+	else \
+		echo "$(RED)Error: scripts/setup/03-deploy-mlflow.sh not found$(NC)"; \
+	fi
+
+verify-eks: ## Verify EKS deployment
+	@echo "$(BLUE)Verifying EKS deployment...$(NC)"
+	@if [ -f scripts/setup/06-verify-all.sh ]; then \
+		./scripts/setup/06-verify-all.sh; \
+	else \
+		kubectl get nodes; \
+		kubectl get pods -n ml-platform; \
+		kubectl get svc -n ml-platform; \
+	fi
+
 ##@ Utilities
 
 shell: ## Open Python shell with environment loaded
@@ -232,10 +311,10 @@ docker-shell: ## Open shell in Docker container
 		--env-file .env \
 		mlflow-vision-training:latest bash
 
-mlflow-ui: ## Open MLflow UI in browser
-	@echo "$(BLUE)Opening MLflow UI...$(NC)"
-	open http://localhost:5000 || xdg-open http://localhost:5000 || echo "Please open http://localhost:5000 in your browser"
+mlflow-ui: ## Open MLflow UI in browser (local)
+	@echo "$(BLUE)Opening local MLflow UI...$(NC)"
+	open http://localhost:5001 || xdg-open http://localhost:5001 || echo "Please open http://localhost:5001 in your browser"
 
-minio-ui: ## Open MinIO console in browser
+minio-ui: ## Open MinIO console in browser (local)
 	@echo "$(BLUE)Opening MinIO console...$(NC)"
 	open http://localhost:9001 || xdg-open http://localhost:9001 || echo "Please open http://localhost:9001 in your browser"
