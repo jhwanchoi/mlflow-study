@@ -20,12 +20,21 @@ terraform {
     }
   }
 
-  backend "s3" {
-    # Configure backend in terraform init:
-    # terraform init -backend-config="bucket=mdpg-terraform-state" \
-    #                -backend-config="key=mlops/eks/terraform.tfstate" \
-    #                -backend-config="region=us-west-2"
-  }
+  # Backend configuration for Terraform state
+  # STEP 1: Run scripts/setup/00-bootstrap-backend.sh first to create S3 bucket
+  # STEP 2: Uncomment the backend block below
+  # STEP 3: Run: terraform init -reconfigure
+
+  # backend "s3" {
+  #   bucket         = "mdpg-terraform-state-ACCOUNT_ID"  # Created by bootstrap script
+  #   key            = "mlops/eks/terraform.tfstate"
+  #   region         = "ap-northeast-2"
+  #   encrypt        = true
+  #   dynamodb_table = "mdpg-terraform-locks"
+  # }
+
+  # For now: Using local backend (state stored in terraform.tfstate file)
+  # This is fine for individual development/testing
 }
 
 provider "aws" {
