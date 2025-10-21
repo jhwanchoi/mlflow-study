@@ -1,0 +1,75 @@
+# Copy this file to terraform.tfvars and customize the values
+# cp terraform.tfvars.example terraform.tfvars
+
+# General Configuration
+aws_region   = "us-west-2"
+project_name = "mdpg-mlops"
+environment  = "dev"  # Options: dev, staging, prod
+
+# VPC Configuration
+vpc_cidr             = "10.0.0.0/16"
+private_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+public_subnet_cidrs  = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
+
+# EKS Configuration
+cluster_name         = "mdpg-mlops-eks"
+kubernetes_version   = "1.28"
+node_instance_types  = ["t3.medium"]  # For production, consider ["t3.large"] or spot instances
+node_group_min_size     = 2
+node_group_max_size     = 5
+node_group_desired_size = 2
+
+# RDS Configuration
+rds_identifier              = "mdpg-mlops-mlflow-db"
+rds_instance_class          = "db.t3.small"  # For production, consider "db.t3.medium" or larger
+rds_engine_version          = "15.4"
+rds_allocated_storage       = 20   # GB
+rds_max_allocated_storage   = 100  # GB (auto-scaling limit)
+rds_database_name           = "mlflow"
+rds_username                = "mlflow"
+rds_backup_retention_period = 7  # days
+
+# S3 Configuration
+s3_bucket_name           = "mdpg-mlops-mlflow-artifacts"  # Must be globally unique
+s3_cors_allowed_origins  = ["https://mlflow.mdpg.ai"]
+s3_size_alarm_threshold  = 107374182400  # 100GB in bytes
+
+# MLflow Service Account Configuration
+mlflow_namespace            = "mlflow"
+mlflow_service_account_name = "mlflow-sa"
+
+# Ray Configuration
+ray_namespace            = "ray"
+ray_service_account_name = "ray-sa"
+
+# External DNS Configuration (optional)
+enable_external_dns = false  # Set to true if you want automatic DNS management via Route53
+
+# Additional Tags (optional)
+additional_tags = {
+  Owner       = "MDPG Team"
+  Department  = "Engineering"
+  CostCenter  = "MLOps"
+  Compliance  = "Internal"
+}
+
+# Production Configuration Example:
+# For production deployment, consider these changes:
+#
+# environment              = "prod"
+# node_instance_types      = ["t3.large"]
+# node_group_min_size      = 3
+# node_group_desired_size  = 3
+# rds_instance_class       = "db.t3.medium"
+# rds_backup_retention_period = 30
+# enable_external_dns      = true
+#
+# Also enable multi-AZ for RDS (automatically enabled when environment = "prod")
+# And enable deletion protection (automatically enabled when environment = "prod")
+
+# Cost Optimization Tips:
+# 1. Use Spot Instances for non-critical workloads
+# 2. Enable cluster autoscaler to scale down during off-hours
+# 3. Use S3 lifecycle policies (already configured in s3.tf)
+# 4. Monitor unused resources with AWS Cost Explorer
+# 5. Consider Reserved Instances for stable, long-term workloads
