@@ -97,7 +97,7 @@ tf-destroy: ## Destroy Terraform infrastructure
 
 train: ## Train model locally
 	@echo "$(BLUE)Starting training...$(NC)"
-	python -m src.training.train
+	poetry run python -m src.training.train
 
 train-docker: ## Train model in Docker container
 	@echo "$(BLUE)Building Docker image...$(NC)"
@@ -117,7 +117,7 @@ evaluate: ## Evaluate model (requires RUN_ID environment variable)
 		exit 1; \
 	fi
 	@echo "$(BLUE)Evaluating model from run: $(RUN_ID)$(NC)"
-	python -m src.training.evaluate $(RUN_ID)
+	poetry run python -m src.training.evaluate $(RUN_ID)
 
 ##@ Development
 
@@ -297,6 +297,86 @@ verify-eks: ## Verify EKS deployment
 		kubectl get svc -n ml-platform; \
 	fi
 
+##@ Model Serving (BentoML)
+
+serve: ## Start BentoML model serving (requires MODEL_RUN_ID or MODEL_NAME)
+	@echo "$(BLUE)Starting BentoML model serving...$(NC)"
+	@if [ -z "$(MODEL_RUN_ID)" ] && [ -z "$(MODEL_NAME)" ]; then \
+		echo "$(RED)Error: Either MODEL_RUN_ID or MODEL_NAME must be set$(NC)"; \
+		echo "Usage:"; \
+		echo "  make serve MODEL_RUN_ID=<mlflow_run_id>"; \
+		echo "  make serve MODEL_NAME=<model_name> MODEL_VERSION=<version>"; \
+		exit 1; \
+	fi
+	docker-compose up -d bentoml
+	@echo "$(GREEN)BentoML server started!$(NC)"
+	@echo ""
+	@echo "$(BLUE)API Endpoints:$(NC)"
+	@echo "  - Predict Image: POST http://localhost:3000/predict_image"
+	@echo "  - Predict Batch: POST http://localhost:3000/predict_batch"
+	@echo "  - Model Info: GET http://localhost:3000/get_model_info"
+	@echo "  - Health: GET http://localhost:3000/health"
+	@echo ""
+
+serve-stop: ## Stop BentoML model serving
+	@echo "$(BLUE)Stopping BentoML server...$(NC)"
+	docker-compose stop bentoml
+	@echo "$(GREEN)BentoML server stopped!$(NC)"
+
+serve-logs: ## Show BentoML server logs
+	docker-compose logs -f bentoml
+
+serve-build: ## Build BentoML service (bento build)
+	@echo "$(BLUE)Building BentoML service...$(NC)"
+	cd src/serving && bentoml build
+	@echo "$(GREEN)BentoML service built!$(NC)"
+
+serve-list: ## List built BentoML services
+	@echo "$(BLUE)Available BentoML services:$(NC)"
+	bentoml list
+
+serve-containerize: ## Containerize BentoML service (requires BENTO_TAG)
+	@if [ -z "$(BENTO_TAG)" ]; then \
+		echo "$(RED)Error: BENTO_TAG not set$(NC)"; \
+		echo "Usage: make serve-containerize BENTO_TAG=<tag>"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Containerizing BentoML service...$(NC)"
+	bentoml containerize $(BENTO_TAG)
+	@echo "$(GREEN)BentoML service containerized!$(NC)"
+
+serve-test: ## Test BentoML API endpoints
+	@echo "$(BLUE)Testing BentoML API...$(NC)"
+	@echo ""
+	@echo "$(YELLOW)1. Health check:$(NC)"
+	curl -s -X POST http://localhost:3000/health -H "Content-Type: application/json" -d '{}' | python3 -m json.tool || true
+	@echo ""
+	@echo "$(YELLOW)2. Model info:$(NC)"
+	curl -s -X POST http://localhost:3000/get_model_info -H "Content-Type: application/json" -d '{}' | python3 -m json.tool || true
+	@echo ""
+	@echo "$(GREEN)API test complete!$(NC)"
+	@echo "$(YELLOW)Tip: Use 'make serve-test-predict' to test image prediction$(NC)"
+
+serve-test-predict: ## Test image prediction (requires test images)
+	@echo "$(BLUE)Testing image prediction...$(NC)"
+	@if [ ! -f test_cat.png ]; then \
+		echo "$(YELLOW)No test images found. Creating test images...$(NC)"; \
+		poetry run python create_test_image.py; \
+	fi
+	@echo ""
+	@echo "$(YELLOW)Testing predictions on sample images:$(NC)"
+	@echo ""
+	@for img in test_cat.png test_dog.png test_airplane.png test_ship.png; do \
+		if [ -f $$img ]; then \
+			echo "$(BLUE)Testing: $$img$(NC)"; \
+			curl -s -X POST http://localhost:3000/predict_image -F "image=@$$img" | python3 -m json.tool | grep -E "(predicted_class|confidence)" | head -2; \
+			echo ""; \
+		fi; \
+	done
+	@echo "$(GREEN)Prediction test complete!$(NC)"
+
+serve-test-all: serve-test serve-test-predict ## Run all BentoML tests (health, model info, predictions)
+
 ##@ Utilities
 
 shell: ## Open Python shell with environment loaded
@@ -318,3 +398,7 @@ mlflow-ui: ## Open MLflow UI in browser (local)
 minio-ui: ## Open MinIO console in browser (local)
 	@echo "$(BLUE)Opening MinIO console...$(NC)"
 	open http://localhost:9001 || xdg-open http://localhost:9001 || echo "Please open http://localhost:9001 in your browser"
+
+bentoml-ui: ## Open BentoML API documentation in browser
+	@echo "$(BLUE)Opening BentoML API docs...$(NC)"
+	open http://localhost:3000 || xdg-open http://localhost:3000 || echo "Please open http://localhost:3000 in your browser"

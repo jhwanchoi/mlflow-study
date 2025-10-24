@@ -209,6 +209,8 @@ def evaluate_from_mlflow(run_id: str) -> dict[str, float]:
     Returns:
         Dictionary of evaluation metrics
     """
+    import os
+
     settings = get_settings()
 
     # Setup
@@ -216,6 +218,12 @@ def evaluate_from_mlflow(run_id: str) -> dict[str, float]:
         level=settings.log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
+
+    # Set AWS/MinIO environment variables for boto3
+    os.environ["AWS_ACCESS_KEY_ID"] = settings.aws_access_key_id
+    os.environ["AWS_SECRET_ACCESS_KEY"] = settings.aws_secret_access_key
+    os.environ["MLFLOW_S3_ENDPOINT_URL"] = settings.mlflow_s3_endpoint_url
+    os.environ["AWS_S3_ENDPOINT_URL"] = settings.mlflow_s3_endpoint_url
 
     mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
 
@@ -248,6 +256,25 @@ def evaluate_from_mlflow(run_id: str) -> dict[str, float]:
         if save_dir.exists():
             for artifact in save_dir.glob("*.png"):
                 mlflow.log_artifact(str(artifact))
+
+        # Log evaluation table for MLflow UI
+        import pandas as pd
+
+        # Create evaluation table with per-class metrics
+        eval_data = []
+        for class_name in class_names:
+            class_metrics = {
+                "class": class_name,
+                "precision": metrics.get(f"precision_{class_name}", 0.0),
+                "recall": metrics.get(f"recall_{class_name}", 0.0),
+                "f1_score": metrics.get(f"f1_{class_name}", 0.0),
+            }
+            eval_data.append(class_metrics)
+
+        eval_df = pd.DataFrame(eval_data)
+
+        # Log as table artifact
+        mlflow.log_table(data=eval_df, artifact_file="evaluation_table.json")
 
     logger.info("Evaluation complete!")
     logger.info(f"Test Accuracy: {metrics['test_accuracy']:.2f}%")

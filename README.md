@@ -62,84 +62,10 @@
 
 ### 인프라 계층
 
-1. **Phase 0-4: 로컬 개발** (현재 완료): Docker Compose
-2. **Phase 5-7: 프로덕션 확장** (계획 중): AWS EKS + Ray Tune + Airflow
-
-## 🚀 Production Expansion Roadmap (2025-10-21 업데이트)
-
-**프로젝트 방향**: 로컬 개발 환경에서 **전사 확장 가능한 MLOps 플랫폼**으로 전환
-
-### 현재 상태 (Phase 0-4 완료)
-- ✅ 로컬 Docker Compose 환경
+**현재 (Phase 0-4 완료)**: Docker Compose 기반 로컬 개발 환경
 - ✅ MLflow + PostgreSQL + MinIO
 - ✅ 52개 자동화 테스트 (56% 커버리지)
 - ✅ CI/CD 파이프라인 (GitHub Actions)
-
-### 다음 단계 (Phase 5-7 계획)
-
-#### Phase 5: AWS EKS 인프라 (4-5주, ~$190/월)
-**목표**: 중앙화된 MLflow 서버 구축
-
-- AWS EKS 클러스터 (Kubernetes 1.28+)
-- RDS PostgreSQL (Multi-AZ)
-- S3 아티팩트 저장소
-- MLflow Authentication (멀티 유저)
-- HTTPS/SSL 지원
-
-**상세 문서**: [docs/eks_infrastructure.md](docs/eks_infrastructure.md) (작성 예정)
-
-#### Phase 6: Ray Tune 분산 최적화 (2-3주)
-**목표**: CIFAR-10 정확도 90%+ 달성
-
-- Ray Cluster on EKS
-- 분산 하이퍼파라미터 튜닝 (100+ trials)
-- GPU auto-scaling (p3.2xlarge Spot)
-- MLflow 자동 실험 기록
-
-**상세 문서**: [docs/ray_tune_guide.md](docs/ray_tune_guide.md) (작성 예정)
-
-#### Phase 7: DDP + Airflow (2-3주)
-**목표**: 프로덕션 파이프라인 자동화
-
-- PyTorch DDP 멀티 GPU 학습
-- Airflow DAGs (일일/주간 파이프라인)
-- 모델 자동 등록 및 배포
-
-**상세 문서**: [docs/distributed_training.md](docs/distributed_training.md) (작성 예정)
-
-### 아키텍처 비교
-
-**현재 (로컬)**:
-```
-Training (Local) → MLflow (Docker) → PostgreSQL + MinIO
-```
-
-**목표 (EKS)**:
-```
-Clients (VSCode, Jupyter)
-    ↓ MLflow Client + Ray Client
-AWS EKS Cluster
-  ├── MLflow Server (HPA: 2-5 pods)
-  ├── Ray Cluster (GPU auto-scaling)
-  └── Airflow (파이프라인)
-    ↓
-RDS PostgreSQL + S3
-```
-
-### 주요 기술 결정
-
-| 항목 | 선택 | 이유 |
-|------|------|------|
-| 인프라 | AWS EKS | 마이그레이션 비용 $14.5k 절감 |
-| 하이퍼파라미터 튜닝 | Ray Tune | 100+ trials 분산 실행 |
-| 인프라 코드 | Terraform + Bash | 휴먼 에러 최소화 |
-| 개발 환경 | VSCode 중심 | ML 엔지니어 선호 |
-
-**예상 비용**:
-- 기본 운영: ~$190/월
-- GPU 사용 (20시간/월): +$18-20
-
-**전체 계획**: [plan.md](plan.md) 참조
 
 ## 요구사항
 
@@ -204,12 +130,6 @@ mlflow-study/
 ├── Makefile                     # 편의 명령어
 ├── pyproject.toml               # Poetry 의존성 관리
 ├── .env.example                 # 환경 변수 템플릿
-│
-├── terraform/                   # 인프라 코드
-│   └── local/
-│       ├── main.tf              # Docker provider 설정
-│       ├── outputs.tf           # Output 변수
-│       └── README.md            # K8s 확장 가이드
 │
 ├── src/
 │   ├── config/
@@ -474,81 +394,7 @@ make minio-ui
 
 ## 확장 가이드
 
-### Kubernetes + Airflow로 확장
-
-이 시스템은 다음과 같이 확장 가능하도록 설계되었습니다:
-
-#### Phase 1: 로컬 개발 (현재)
-```yaml
-# Docker Compose
-services:
-  mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.10.2
-    ...
-```
-
-#### Phase 2: Kubernetes 배포
-```yaml
-# Helm Chart (추후)
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: mlflow-server
-spec:
-  template:
-    spec:
-      containers:
-      - name: mlflow
-        image: ghcr.io/mlflow/mlflow:v2.10.2
-        env:
-        - name: BACKEND_STORE_URI
-          valueFrom:
-            secretKeyRef:
-              name: mlflow-secrets
-              key: backend-uri
-```
-
-#### Phase 3: Airflow 통합
-```python
-# Airflow DAG (추후)
-from airflow import DAG
-from airflow.providers.docker.operators.docker import DockerOperator
-
-with DAG('vision_training_pipeline') as dag:
-    train_task = DockerOperator(
-        task_id='train_model',
-        image='mlflow-vision-training:latest',
-        environment={
-            'MLFLOW_TRACKING_URI': '{{ var.value.mlflow_uri }}',
-            'EXPERIMENT_NAME': 'production-training'
-        }
-    )
-```
-
-### Terraform 마이그레이션
-
-```hcl
-# terraform/kubernetes/main.tf (추후)
-provider "kubernetes" {
-  config_path = "~/.kube/config"
-}
-
-provider "helm" {
-  kubernetes {
-    config_path = "~/.kube/config"
-  }
-}
-
-resource "helm_release" "mlflow" {
-  name       = "mlflow"
-  repository = "https://charts.community.dev"
-  chart      = "mlflow"
-
-  values = [
-    file("${path.module}/values.yaml")
-  ]
-}
-```
+이 시스템은 Docker Compose 기반으로 로컬 개발 환경을 제공합니다. 향후 필요시 Kubernetes나 클라우드 환경으로 확장할 수 있도록 설계되었습니다.
 
 ## AI 엔지니어 협업 워크플로우
 
@@ -563,9 +409,8 @@ resource "helm_release" "mlflow" {
 **ML 엔지니어 (당신)**:
 1. `src/training/`으로 프로덕션 코드화
 2. Docker 이미지 빌드 및 최적화
-3. Terraform 인프라 관리
-4. Airflow DAG 작성 (추후)
-5. 모델 배포 파이프라인 구축
+3. 인프라 관리 및 최적화
+4. 모델 배포 파이프라인 구축
 
 ### 협업 시나리오
 
@@ -578,9 +423,6 @@ jupyter notebook notebooks/experiment.ipynb
 make train  # 검증
 make train-docker  # 컨테이너화
 make evaluate RUN_ID=abc123  # 평가
-
-# 3. 배포 (추후)
-# Airflow DAG 트리거 → K8s Job 실행 → MLflow 모델 서빙
 ```
 
 ## 모니터링 및 디버깅
@@ -640,18 +482,14 @@ make clean-all
 ## 다음 단계
 
 1. **모델 최적화**: Quantization, pruning 적용
-2. **CI/CD 파이프라인**: GitHub Actions 통합
-3. **Kubernetes 배포**: Helm chart 작성
-4. **Airflow DAG**: 학습 파이프라인 자동화
-5. **모델 서빙**: MLflow Models + FastAPI
-6. **모니터링**: Prometheus + Grafana
+2. **모델 서빙**: MLflow Models + FastAPI
+3. **추가 데이터셋**: 커스텀 데이터셋 지원
 
 ## 참고 자료
 
 - [MLflow Documentation](https://mlflow.org/docs/latest/index.html)
 - [PyTorch MPS Backend](https://pytorch.org/docs/stable/notes/mps.html)
 - [CIFAR-10 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
-- [Terraform Docker Provider](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs)
 
 ## 라이선스
 

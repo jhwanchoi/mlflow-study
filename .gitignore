@@ -69,3 +69,16 @@ minio_data/
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
+
+# Coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Test artifacts
+test_*.png
+evaluation_results/
+
+# Poetry
+poetry.lock

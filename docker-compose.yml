@@ -97,6 +97,35 @@ services:
     networks:
       - mlflow-network
 
+  # BentoML Model Serving
+  bentoml:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: bentoml-server
+    command: bentoml serve src.serving.service:VisionClassifier --host 0.0.0.0 --port 3000
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_RUN_ID: ${MODEL_RUN_ID:-}
+      MODEL_NAME: ${MODEL_NAME:-}
+      MODEL_VERSION: ${MODEL_VERSION:-latest}
+      MODEL_STAGE: ${MODEL_STAGE:-}
+      MODEL_ALIAS: ${MODEL_ALIAS:-}
+      AWS_ACCESS_KEY_ID: minio
+      AWS_SECRET_ACCESS_KEY: minio123
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_S3_ENDPOINT_URL: http://minio:9000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src:/app/src
+      - ./checkpoints:/app/checkpoints
+    depends_on:
+      - mlflow
+    networks:
+      - mlflow-network
+
 volumes:
   postgres_data:
     driver: local
