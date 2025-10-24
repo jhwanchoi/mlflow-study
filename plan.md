@@ -2,7 +2,7 @@
 
 **작성일**: 2025-10-18
 **최종 업데이트**: 2025-10-24
-**버전**: 3.1
+**버전**: 3.2
 
 ---
 
@@ -106,14 +106,18 @@
 ### 현재 아키텍처 (로컬 개발 환경)
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                 Training (Docker or Local)                   │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │  PyTorch Model + CIFAR-10 Data                      │   │
-│  └──────────────────┬───────────────────────────────────┘   │
-│                     │ MLflow Client                          │
-└─────────────────────┼──────────────────────────────────────┘
-                      │
-                      ▼
+│            Training & Tuning (Docker or Local)               │
+│  ┌──────────────────┐      ┌───────────────────────────┐   │
+│  │ Single Training  │      │ Ray Tune (Hyperparameter) │   │
+│  │ PyTorch Model    │      │ - ASHA Scheduler          │   │
+│  │ CIFAR-10 Data    │      │ - HyperOpt Search         │   │
+│  └────────┬─────────┘      │ - Batch-level logging     │   │
+│           │                └──────────┬────────────────┘   │
+│           │ MLflow Client             │ MLflow Client       │
+└───────────┼───────────────────────────┼───────────────────┘
+            │                           │
+            └────────────┬──────────────┘
+                         ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              MLflow Tracking Server (Docker)                 │
 │              ✅ Python 3.11 + boto3 + psycopg2              │
@@ -342,6 +346,80 @@
 - ✅ Champion alias (Version 2) 모델 서빙 검증
 - ✅ Test accuracy 51.27% 모델 REST API로 서빙
 - ✅ 예측 정확도 검증 (test_cat.png → "cat", confidence 0.307)
+
+### Phase 4.6: Ray Tune 하이퍼파라미터 최적화 통합 ✅ (2025-10-24 완료)
+
+**목표**: MLflow 통합된 자동 하이퍼파라미터 튜닝 시스템 구축
+
+#### 4.6.1 Ray Tune 핵심 기능 구현
+- [x] **Trainable 함수** (`src/tuning/ray_tune.py`)
+  - Training loop를 Ray Tune과 통합
+  - MLflow 자동 로깅 (batch-level + epoch-level)
+  - Hyperparameter 주입 (learning_rate, weight_decay, momentum)
+
+- [x] **Search Space 설정**
+  - `create_search_space()`: 검색 공간 정의
+  - Log-uniform 분포: learning_rate (1e-4 ~ 1e-2)
+  - Log-uniform 분포: weight_decay (1e-5 ~ 1e-3)
+  - Uniform 분포: momentum (0.8 ~ 0.99)
+
+- [x] **Scheduler & Search Algorithm**
+  - ASHA Scheduler: Early stopping으로 비효율적인 trial 조기 종료
+  - HyperOpt (optional): Bayesian optimization
+  - Grid search 지원: 간단한 테스트용
+
+#### 4.6.2 MLflow 통합 고도화
+- [x] **Batch-level 세밀한 로깅**
+  - 매 10 batch마다 metrics 로깅
+  - `batch_train_loss`, `batch_train_accuracy`
+  - `batch_val_loss`, `batch_val_accuracy`
+  - Global step counter로 연속적인 학습 곡선 생성
+
+- [x] **Epoch-level 요약 로깅**
+  - `epoch_train_loss`, `epoch_train_accuracy`
+  - `epoch_val_loss`, `epoch_val_accuracy`
+  - `learning_rate`, `epoch`
+
+- [x] **Ray Tune 호환 metrics**
+  - `train_loss`, `train_accuracy`, `val_loss`, `val_accuracy`
+  - `training_iteration` (Ray Tune 표준)
+  - MLflowLoggerCallback 대체로 full control 확보
+
+- [x] **Hyperparameter & Tags 자동 로깅**
+  - MLflow params: learning_rate, weight_decay, momentum, epochs, batch_size
+  - Tags: framework="ray-tune", task="hyperparameter-tuning", trial_id
+
+- [x] **Best Trial 자동 추적**
+  - 최적 trial config 및 metrics MLflow에 별도 run으로 저장
+  - Tag: best_trial=True
+
+#### 4.6.3 Makefile 자동화
+- [x] `make tune`: 기본 튜닝 (10 trials)
+- [x] `make tune-quick`: 빠른 테스트 (5 trials)
+- [x] `make tune-extensive`: 대규모 튜닝 (50 trials)
+- [x] `make tune-results`: 결과 요약 확인
+- [x] `make tune-clean`: Ray Tune 결과 정리
+
+#### 4.6.4 테스트 및 검증
+- [x] **Integration Test** (`test_ray_tune.py`)
+  - 2 trials × 3 epochs
+  - Grid search: learning_rate [0.001, 0.005]
+  - Batch-level 로깅 검증
+  - MLflow UI 시각화 확인
+
+#### 4.6.5 기술 성과
+- ✅ **MLflowLoggerCallback 제거**: 중복 run 문제 해결
+- ✅ **Batch-level 세밀한 추적**: 수백 개 step으로 부드러운 학습 곡선
+- ✅ **Cross-platform**: MPS 학습 환경에서도 정상 동작
+- ✅ **Modular Design**: 향후 Ray Train (분산 학습) 통합 준비 완료
+
+#### 성공 기준
+- ✅ Ray Tune이 로컬에서 안정적으로 실행
+- ✅ 각 trial이 MLflow에 개별 run으로 생성 (중복 없음)
+- ✅ Batch-level metrics가 MLflow UI에서 부드러운 곡선으로 시각화
+- ✅ Epoch-level validation metrics 정상 로깅
+- ✅ Best trial 자동 선택 및 로깅
+- ✅ Makefile commands로 쉬운 실행 가능
 
 ### Phase 5: AWS EKS 인프라 구축 (4-5주, 우선순위: Critical)
 

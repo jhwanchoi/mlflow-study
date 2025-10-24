@@ -49,6 +49,10 @@ ENV/
 mlruns/
 mlartifacts/
 
+# Ray Tune
+ray_results/
+~/ray_results/
+
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb

@@ -1,9 +1,33 @@
 # TODO - 추후 작업 목록
 
-**최종 업데이트**: 2025-10-21
-**버전**: 2.0
+**최종 업데이트**: 2025-10-24
+**버전**: 2.1
 
 이 문서는 현재 프로젝트에서 완전히 구현되지 않았거나, 추후 클라우드 환경에서 수행해야 하는 작업들을 정리한 목록입니다.
+
+## 최근 완료 항목 (Phase 4.6)
+
+### ✅ Ray Tune 하이퍼파라미터 최적화 (2025-10-24)
+
+**완료 항목**:
+- ✅ Ray Tune 코어 모듈 구현 (`src/tuning/ray_tune.py`)
+- ✅ MLflow 완전 통합 (배치 레벨 + 에포크 레벨 메트릭)
+- ✅ ASHA 스케줄러 및 HyperOpt 검색 알고리즘
+- ✅ 하이퍼파라미터 검색 공간 정의 (learning_rate, weight_decay, momentum)
+- ✅ Makefile 명령어 (`make tune`, `make tune-quick`, `make tune-extensive`)
+- ✅ 통합 테스트 (`test_ray_tune.py`)
+- ✅ 문서화 (plan.md, README.md, TODO.md)
+
+**주요 기능**:
+- 분산 하이퍼파라미터 탐색 (Ray Tune)
+- MLflow 자동 로깅 (batch-level + epoch-level 메트릭)
+- Best trial 자동 선택 및 기록
+- 체크포인트 저장 및 복구
+
+**향후 계획**:
+- Phase 5에서 EKS + Ray Cluster로 확장
+- GPU 워커 노드를 활용한 대규모 튜닝
+- Ray Train과 통합하여 DDP 분산 학습 지원
 
 ---
 
@@ -313,15 +337,20 @@
 
 ---
 
-## Phase 6: Ray Tune 하이퍼파라미터 최적화
+## Phase 6: Ray Cluster 분산 학습 확장
 
 **우선순위**: High
 **예상 기간**: 2-3주
 **선행 조건**: Phase 5 완료
+**현재 상태**: Phase 4.6에서 로컬 Ray Tune 완료 ✅
 
-**목표**: 분산 하이퍼파라미터 튜닝으로 모델 정확도 90%+ 달성
+**목표**: EKS + Ray Cluster에서 대규모 하이퍼파라미터 튜닝 및 분산 학습
 
 **상세 문서**: [docs/ray_tune_guide.md](docs/ray_tune_guide.md) (작성 예정)
+
+**참고**:
+- Ray Tune 코어 기능은 Phase 4.6에서 완료됨
+- Phase 6는 EKS 환경에서 GPU 워커 노드를 활용한 확장에 집중
 
 ---
 

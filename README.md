@@ -29,6 +29,7 @@
 - **경량 비전 모델**: MobileNetV3-Small/Large, ResNet18
 - **다중 데이터셋**: CIFAR-10/100, Fashion-MNIST
 - **M2 GPU 최적화**: MPS backend 지원
+- **하이퍼파라미터 튜닝**: Ray Tune 통합 (분산 최적화)
 
 ### ✅ 품질 & 자동화
 - **자동화 테스트**: 52개 테스트, 56.61% 커버리지
@@ -66,6 +67,7 @@
 - ✅ MLflow + PostgreSQL + MinIO
 - ✅ 52개 자동화 테스트 (56% 커버리지)
 - ✅ CI/CD 파이프라인 (GitHub Actions)
+- ✅ Ray Tune 하이퍼파라미터 최적화 (Phase 4.6)
 
 ## 요구사항
 
@@ -138,9 +140,11 @@ mlflow-study/
 │   │   └── dataset.py           # CIFAR-10 데이터 로더
 │   ├── models/
 │   │   └── vision_model.py      # MobileNetV3 모델 래퍼
-│   └── training/
-│       ├── train.py             # MLflow 통합 학습 스크립트
-│       └── evaluate.py          # 평가 및 메트릭 로깅
+│   ├── training/
+│   │   ├── train.py             # MLflow 통합 학습 스크립트
+│   │   └── evaluate.py          # 평가 및 메트릭 로깅
+│   └── tuning/
+│       └── ray_tune.py          # Ray Tune 하이퍼파라미터 최적화
 │
 ├── notebooks/                   # Jupyter 실험용
 ├── tests/                       # 테스트 코드 (52개 테스트)
@@ -184,6 +188,11 @@ make test
 
 # Jupyter 노트북 시작
 make jupyter
+
+# Ray Tune 하이퍼파라미터 튜닝
+make tune              # 10 trials (기본)
+make tune-quick        # 5 trials (빠른 테스트)
+make tune-extensive    # 50 trials (대규모 탐색)
 ```
 
 ## 테스트
@@ -374,6 +383,7 @@ model_name: Literal["mobilenet_v3_small", "mobilenet_v3_large", "resnet18"]
 - Epoch 메트릭: train/val loss, accuracy, learning rate
 - Batch 메트릭: 매 N 배치마다 로깅
 - 최종 메트릭: best_val_accuracy, test_accuracy, test_f1
+- Ray Tune 메트릭: trial별 하이퍼파라미터 탐색 결과
 
 **아티팩트**:
 - PyTorch 모델 (`.pth`)
@@ -481,9 +491,11 @@ make clean-all
 
 ## 다음 단계
 
-1. **모델 최적화**: Quantization, pruning 적용
-2. **모델 서빙**: MLflow Models + FastAPI
-3. **추가 데이터셋**: 커스텀 데이터셋 지원
+1. **AWS EKS 배포** (Phase 5): 중앙화된 MLflow 서버 구축
+2. **Ray Train 통합** (Phase 6): 분산 학습 구현
+3. **Airflow 파이프라인** (Phase 7): 자동화 워크플로우
+4. **모델 최적화**: Quantization, pruning 적용
+5. **모델 서빙**: MLflow Models + BentoML
 
 ## 참고 자료
 

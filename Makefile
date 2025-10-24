@@ -119,6 +119,58 @@ evaluate: ## Evaluate model (requires RUN_ID environment variable)
 	@echo "$(BLUE)Evaluating model from run: $(RUN_ID)$(NC)"
 	poetry run python -m src.training.evaluate $(RUN_ID)
 
+##@ Hyperparameter Tuning (Ray Tune)
+
+tune: ## Run hyperparameter tuning with Ray Tune (default: 10 trials)
+	@echo "$(BLUE)Starting Ray Tune hyperparameter optimization...$(NC)"
+	@TRIALS=$${TRIALS:-10}; \
+	CONCURRENT=$${CONCURRENT:-2}; \
+	echo "Running $$TRIALS trials with max $$CONCURRENT concurrent trials"; \
+	poetry run python -m src.tuning.ray_tune
+
+tune-quick: ## Quick tuning test (5 trials, 2 concurrent)
+	@echo "$(BLUE)Starting quick Ray Tune test...$(NC)"
+	TRIALS=5 CONCURRENT=2 poetry run python -c "\
+from src.tuning import tune_model; \
+tune_model(num_samples=5, max_concurrent_trials=2)"
+
+tune-extensive: ## Extensive tuning (50 trials, 4 concurrent)
+	@echo "$(BLUE)Starting extensive Ray Tune optimization...$(NC)"
+	TRIALS=50 CONCURRENT=4 poetry run python -c "\
+from src.tuning import tune_model; \
+tune_model(num_samples=50, max_concurrent_trials=4)"
+
+tune-results: ## Show Ray Tune results summary
+	@echo "$(BLUE)Ray Tune Results:$(NC)"
+	@if [ -d ray_results ]; then \
+		echo ""; \
+		echo "$(YELLOW)Recent tuning experiments:$(NC)"; \
+		ls -lt ray_results/ | head -10; \
+		echo ""; \
+		echo "$(YELLOW)To view detailed results, check:$(NC)"; \
+		echo "  - MLflow UI: http://localhost:5001"; \
+		echo "  - Ray results directory: ./ray_results/"; \
+	else \
+		echo "$(YELLOW)No tuning results found. Run 'make tune' first.$(NC)"; \
+	fi
+
+tune-clean: ## Clean Ray Tune results
+	@echo "$(RED)Warning: This will remove all Ray Tune results!$(NC)"
+	@read -p "Are you sure? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		rm -rf ray_results/; \
+		echo "$(GREEN)Ray Tune results cleaned!$(NC)"; \
+	fi
+
+tune-test: ## Run Ray Tune integration test (2 trials, 3 epochs)
+	@echo "$(BLUE)Running Ray Tune integration test...$(NC)"
+	poetry run python tests/test_ray_tune.py
+
+test-mlflow-artifacts: ## Test MLflow artifact storage (models, files)
+	@echo "$(BLUE)Testing MLflow artifact storage...$(NC)"
+	poetry run python tests/test_mlflow_artifacts.py
+
 ##@ Development
 
 pre-commit-install: ## Install pre-commit hooks
@@ -216,7 +268,12 @@ clean-checkpoints: ## Clean model checkpoints
 		echo "$(GREEN)Checkpoints cleaned!$(NC)"; \
 	fi
 
-clean-all: clean clean-data clean-checkpoints clean-infra ## Clean everything
+clean-ray: ## Clean Ray Tune results
+	@echo "$(BLUE)Cleaning Ray Tune results...$(NC)"
+	rm -rf ray_results/
+	@echo "$(GREEN)Ray Tune results cleaned!$(NC)"
+
+clean-all: clean clean-data clean-checkpoints clean-ray clean-infra ## Clean everything
 
 ##@ Remote (EKS)
 
