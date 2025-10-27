@@ -53,9 +53,8 @@ mlartifacts/
 ray_results/
 ~/ray_results/
 
-# Jupyter
+# Jupyter (not used)
 .ipynb_checkpoints/
-*.ipynb
 
 # MacOS
 .DS_Store

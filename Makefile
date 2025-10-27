@@ -233,10 +233,6 @@ test-docker-fast: ## Run fast tests in Docker container
 		poetry run pytest tests/ -v -m "not slow" --cov=src --cov-report=term
 	@echo "$(GREEN)Fast tests complete!$(NC)"
 
-jupyter: ## Start Jupyter notebook server
-	@echo "$(BLUE)Starting Jupyter notebook...$(NC)"
-	poetry run jupyter notebook notebooks/
-
 ##@ Cleanup
 
 clean: ## Clean temporary files
